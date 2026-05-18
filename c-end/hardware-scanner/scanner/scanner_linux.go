@@ -110,7 +110,7 @@ func scanMotherboardLinux() MotherboardInfo {
 }
 
 func scanRAMLinux() RamInfo {
-	ram := RamInfo{}
+	ram := RamInfo{Sticks: []RamStick{}}
 
 	// 总内存: /proc/meminfo MemTotal
 	memInfo, err := os.ReadFile("/proc/meminfo")

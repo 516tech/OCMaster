@@ -89,7 +89,7 @@ jobs:
 
           # RAM
           if (-not $json.ram.totalCapacity) { Write-Error "ram.totalCapacity empty"; exit 1 }
-          if (-not $json.ram.sticks) { Write-Error "ram.sticks array missing"; exit 1 }
+          if ($null -eq $json.ram.sticks) { Write-Error "ram.sticks null"; exit 1 }
           Write-Host "    RAM: $($json.ram.totalCapacity) ($($json.ram.stickCount) sticks, $($json.ram.channelCount) ch)"
 
           # GPU + MB

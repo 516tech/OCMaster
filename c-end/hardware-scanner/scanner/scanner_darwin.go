@@ -95,7 +95,7 @@ func scanMotherboard() MotherboardInfo {
 }
 
 func scanRAM() RamInfo {
-	ram := RamInfo{}
+	ram := RamInfo{Sticks: []RamStick{}}
 
 	memSize := sysctlUint64("hw.memsize")
 	if memSize > 0 {

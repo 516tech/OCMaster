@@ -102,7 +102,7 @@ func scanMotherboardWindows() MotherboardInfo {
 }
 
 func scanRAMWindows() RamInfo {
-	ram := RamInfo{}
+	ram := RamInfo{Sticks: []RamStick{}}
 
 	// Win32_PhysicalMemory
 	lines := wmicQuery("memorychip", "Capacity", "Speed", "ConfiguredClockSpeed", "SMBIOSMemoryType")
