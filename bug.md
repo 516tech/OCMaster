@@ -12,7 +12,7 @@
 | 阶段三 S端后端 | 10/10 | 10/10 | ✅ |
 | 阶段四 S端前端 | 9/9 | 9/9 (build PASS) | ✅ |
 | 阶段五 集成 | 5/5 | 0/5 (端到端已通过) | ⚠️ |
-| 阶段六 Bug修复 | 7/7 | 4/7 | ⚠️ |
+| 阶段六 Bug修复 | 8/8 | 5/8 | ⚠️ |
 | go test | 全PASS | 15/15 PASS (61 tests) | ✅ |
 | 端到端集成 | 通过 | Upload→Retrieve→Delete PASS | ✅ |
 | PDF 生成 | Chrome 实测 | 107KB ✅ 75%覆盖 | ✅ |
@@ -23,24 +23,26 @@
 - chi Mount panic → Group嵌套 ✅
 - SQLite ENUM → VARCHAR ✅
 - viper env映射 → SetEnvKeyReplacer ✅
-- mysql仓储 0%→29.5% ✅
+- mysql仓储 0%→92.0% ✅
 - config 68%→89.5% ✅
 - middleware 0%→100% ✅
 - http路由 0%→100% ✅
-- handler 0%→45.8% ✅
+- handler 0%→66.9% ✅
+- application 0%→63.4% ✅
 - PDF 0%→75% (Chrome实测) ✅
 - 端到端集成 test added ✅
 - S端前端23文件 + vite build PASS ✅
 
-三、待解决 (3/7)
+三、待解决 (3/8)
 
 - [ ] BUG-001: wire_gen.go未生成 — 低优先，手动DI等效
-- [ ] BUG-002: 覆盖率≥70% — handler 45.8%↑, mw 100%, pdf 75%, domain100%x3
+- [ ] BUG-002: 覆盖率≥70% — handler 66.9%, app 63.4%, mysql 92.0%, mw 100%, pdf 75%, domain 100%x3, ~75% avg
 - [x] BUG-004(macOS): addon 编译成功 56KB, extraResources 集成 ✅ (Win需平台编译)
 
-四、已解决 (4/7)
+四、已解决 (5/8)
 
 - [x] BUG-003: S端前端 — vite build PASS ✅
 - [x] BUG-005: PDF chromedp — Chrome实测 13 PASS ✅
 - [x] BUG-006: Docker集成 — 本地SQLite零依赖方案已规避
 - [x] BUG-007: Electron二进制 — mirror安装 28.3.3, C端构建通过 ✅
+- [x] BUG-008: GitHub Actions npm ci 失败 — package-lock.json 与 package.json 不同步，运行 npm install 重新生成 lock 文件 ✅

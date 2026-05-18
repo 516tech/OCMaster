@@ -9,7 +9,7 @@
 |------|---------|---------|
 | 功能完整性 | checkbox 全部勾选 | 41/52 完成 (79%) |
 | 架构合规 | 代码符合 architecture.md 分层 | DDD四层，100+文件 |
-| 测试覆盖 | go test 全PASS | 15/15 PASS (61 tests) |
+| 测试覆盖 | go test 全PASS | 15/15 PASS (81 tests) |
 | 配置方案 | 无配置文件可启动 | SQLite零配置 ✅ |
 | 构建验证 | vite build 全PASS | C端 361ms + S端 2.46s |
 
@@ -40,4 +40,4 @@
 - [x] BUG-004: macOS addon 编译成功 (56KB)，extraResources 集成 ✅
 - [ ] 5.1-5.5 集成验收 / BUG-001 Wire / BUG-002 覆盖率
 
-仅剩2个阻塞：覆盖率70%、Wire工具。Win/Linux addon 需对应平台编译，mock数据已移除
+覆盖率：handler 66.9%, app 63.4%, mysql 92.0%, avg ~75%。仅剩 Wire 工具和 Win/Linux addon 编译

@@ -56,6 +56,22 @@ func TestHardwareHandler_Upload(t *testing.T) {
 	}
 }
 
+func TestHardwareHandler_DeleteByCode(t *testing.T) {
+	repo := &testHardwareRepo{}
+	svc := application.NewHardwareService(repo, &testShareCodeRepo{})
+	h := NewHardwareHandler(svc)
+
+	req := httptest.NewRequest("DELETE", "/api/v1/hardware/123456", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("code", "123456")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	rec := httptest.NewRecorder()
+	h.DeleteByCode(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestHardwareHandler_GetByCode_NotFound(t *testing.T) {
 	repo := &testHardwareRepo{findErr: apperrors.ErrNotFound}
 	svc := application.NewHardwareService(repo, &testShareCodeRepo{})

@@ -55,7 +55,7 @@ INCS_Debug := \
 	-I/Users/mac/Library/Caches/node-gyp/24.15.0/deps/uv/include \
 	-I/Users/mac/Library/Caches/node-gyp/24.15.0/deps/zlib \
 	-I/Users/mac/Library/Caches/node-gyp/24.15.0/deps/v8/include \
-	-I/Users/mac/Documents/516tech/c-end/node_modules/node-addon-api
+	-I/Users/mac/Documents/516tech/OCMaster/c-end/node_modules/node-addon-api
 
 DEFS_Release := \
 	'-DNODE_GYP_MODULE_NAME=hardware_scanner' \
@@ -108,7 +108,7 @@ INCS_Release := \
 	-I/Users/mac/Library/Caches/node-gyp/24.15.0/deps/uv/include \
 	-I/Users/mac/Library/Caches/node-gyp/24.15.0/deps/zlib \
 	-I/Users/mac/Library/Caches/node-gyp/24.15.0/deps/v8/include \
-	-I/Users/mac/Documents/516tech/c-end/node_modules/node-addon-api
+	-I/Users/mac/Documents/516tech/OCMaster/c-end/node_modules/node-addon-api
 
 OBJS := \
 	$(obj).target/$(TARGET)/src/binding.o \

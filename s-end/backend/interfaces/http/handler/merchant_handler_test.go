@@ -68,6 +68,51 @@ func TestMerchantHandler_Login(t *testing.T) {
 	}
 }
 
+func TestMerchantHandler_UpdateProfile(t *testing.T) {
+	repo := &mockMerchRepo{findByIDFn: func(id uint64) (*merchant.Merchant, error) {
+		return &merchant.Merchant{ID: 1, Phone: "13800138000", Status: merchant.StatusActive}, nil
+	}}
+	svc := application.NewMerchantService(repo, "secret")
+	h := NewMerchantHandler(svc)
+
+	token, _ := auth.GenerateToken("secret", 1, "13800138000")
+	body, _ := json.Marshal(map[string]string{"phone": "13900139000", "risk_template": "overclock warning"})
+	req := httptest.NewRequest("PUT", "/api/v1/merchant/profile", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	claims, _ := auth.ParseToken("secret", token)
+	ctx := context.WithValue(req.Context(), middleware.ClaimsKey, claims)
+	req = req.WithContext(ctx)
+	rec := httptest.NewRecorder()
+	h.UpdateProfile(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestMerchantHandler_ChangePassword(t *testing.T) {
+	pw, _ := bcrypt.GenerateFromPassword([]byte("oldpass"), bcrypt.DefaultCost)
+	repo := &mockMerchRepo{findByIDFn: func(id uint64) (*merchant.Merchant, error) {
+		return &merchant.Merchant{ID: 1, Phone: "13800138000", PasswordHash: string(pw), Status: merchant.StatusActive}, nil
+	}}
+	svc := application.NewMerchantService(repo, "secret")
+	h := NewMerchantHandler(svc)
+
+	token, _ := auth.GenerateToken("secret", 1, "13800138000")
+	body, _ := json.Marshal(map[string]string{"old_password": "oldpass", "new_password": "newpass"})
+	req := httptest.NewRequest("PUT", "/api/v1/merchant/password", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	claims, _ := auth.ParseToken("secret", token)
+	ctx := context.WithValue(req.Context(), middleware.ClaimsKey, claims)
+	req = req.WithContext(ctx)
+	rec := httptest.NewRecorder()
+	h.ChangePassword(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestMerchantHandler_GetProfile(t *testing.T) {
 	repo := &mockMerchRepo{findByIDFn: func(id uint64) (*merchant.Merchant, error) {
 		return &merchant.Merchant{ID: 1, Phone: "13800138000", Status: merchant.StatusActive}, nil

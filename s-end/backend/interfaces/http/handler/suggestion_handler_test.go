@@ -87,3 +87,27 @@ func TestSuggestionHandler_ListHistory(t *testing.T) {
 		t.Errorf("expected 200, got %d", rec.Code)
 	}
 }
+
+func TestSuggestionHandler_DownloadPDF(t *testing.T) {
+	repo := &mockSugRepo{}
+	repo.Save(context.Background(), &suggestion.Suggestion{
+		RiskWarning: "pdf test warning",
+		CpuSuggestion: &suggestion.CpuSuggestion{Frequency: "5.0GHz", Voltage: "1.3V"},
+	})
+	svc := application.NewSuggestionService(repo)
+	h := NewSuggestionHandler(svc)
+
+	req := httptest.NewRequest("GET", "/api/v1/suggestions/1/pdf", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", "1")
+	ctx := context.WithValue(req.Context(), chi.RouteCtxKey, rctx)
+	req = req.WithContext(ctx)
+	rec := httptest.NewRecorder()
+	h.DownloadPDF(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if rec.Body.Len() == 0 {
+		t.Error("expected non-empty PDF body")
+	}
+}

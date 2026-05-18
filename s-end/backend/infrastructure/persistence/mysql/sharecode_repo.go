@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -17,6 +18,6 @@ func NewShareCodeRepo(db *gorm.DB) *ShareCodeRepo {
 func (r *ShareCodeRepo) Exists(ctx context.Context, code string) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&HardwareUploadModel{}).
-		Where("share_code = ? AND expires_at > NOW()", code).Count(&count).Error
+		Where("share_code = ? AND expires_at > ?", code, time.Now()).Count(&count).Error
 	return count > 0, err
 }
