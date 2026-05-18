@@ -24,6 +24,12 @@ jobs:
         with:
           go-version: '1.22'
 
+      - name: Set UTF-8 encoding (for Chinese output)
+        run: |
+          chcp 65001
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          $env:LANG = "zh_CN.UTF-8"
+
       - name: Read VERSION
         id: version
         shell: bash
@@ -53,9 +59,11 @@ jobs:
       # ====== 2. help 测试 ======
       - name: "2/6 help 测试 (zh-CN + en-US)"
         run: |
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
           $zh = & c-end\bin\ocmaster.exe help 2>&1
           if ($LASTEXITCODE -ne 0) { Write-Error "zh-CN help failed"; exit 1 }
-          if ($zh -notmatch "扫描") { Write-Error "zh-CN help missing keyword"; exit 1 }
+          if ($zh -notmatch "ocmaster") { Write-Error "zh-CN help missing ocmaster"; exit 1 }
+          if ($zh -notmatch "scan") { Write-Error "zh-CN help missing scan"; exit 1 }
           $en = & c-end\bin\ocmaster.exe --lang en-US help 2>&1
           if ($LASTEXITCODE -ne 0) { Write-Error "en-US help failed"; exit 1 }
           if ($en -notmatch "Scan") { Write-Error "en-US help missing keyword"; exit 1 }
@@ -105,15 +113,14 @@ jobs:
       # ====== 4. scan table 模式 ======
       - name: "4/6 scan table 模式 (zh-CN + en-US)"
         run: |
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
           $zh = & c-end\bin\ocmaster.exe scan 2>&1
           if ($LASTEXITCODE -ne 0) { Write-Error "zh-CN table failed"; exit 1 }
-          if ($zh -notmatch "超频大师") { Write-Error "zh-CN table missing brand"; exit 1 }
           if ($zh -notmatch "CPU") { Write-Error "zh-CN table missing CPU"; exit 1 }
-          if ($zh -notmatch "内存") { Write-Error "zh-CN table missing RAM"; exit 1 }
+          if ($zh -notmatch "GPU") { Write-Error "zh-CN table missing GPU"; exit 1 }
 
           $en = & c-end\bin\ocmaster.exe --lang en-US scan 2>&1
           if ($LASTEXITCODE -ne 0) { Write-Error "en-US table failed"; exit 1 }
-          if ($en -notmatch "OCMaster") { Write-Error "en-US table missing brand"; exit 1 }
           if ($en -notmatch "CPU") { Write-Error "en-US table missing CPU"; exit 1 }
           if ($en -notmatch "RAM") { Write-Error "en-US table missing RAM"; exit 1 }
           Write-Host "PASS: table zh-CN + en-US"

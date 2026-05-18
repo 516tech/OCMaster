@@ -28,7 +28,7 @@
 
 四、本轮修复
 
-- [x] 三平台静态编译: CGO_ENABLED=0 CLI bin，statically linked
-- [x] CI 全功能集成测试: 6-step (version/help/JSON schema/table/en-US/error)
-- [x] sync-version.sh — 移除 Electron C端引用
-- [x] BUG-107/108/109 + PRD 2.10 (前轮)
+- [x] BUG-110: CI help 中文编码失败 — UTF-8 设置 + ASCII 关键词校验
+- [x] help 输出 bug: --lang en-US 行显示中文 → 用翻译 key 替代 hack
+- [x] 三平台静态编译: CGO_ENABLED=0 CLI bin
+- [x] CI 全功能集成测试: 6-step

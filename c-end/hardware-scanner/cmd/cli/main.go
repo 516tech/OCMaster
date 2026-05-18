@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 
 	scanner "github.com/ocmaster/hardware-scanner/scanner"
 )
@@ -16,8 +15,9 @@ var lang = "zh-CN"
 var msgs = map[string]map[string]string{
 	"help_title":   {"zh-CN": "OCMaster CLI 超频大师", "en-US": "OCMaster CLI"},
 	"help_scan":    {"zh-CN": "扫描硬件，输出文本表格", "en-US": "Scan hardware, output as table"},
-	"help_json":    {"zh-CN": "扫描硬件，输出 JSON", "en-US": "Scan hardware, output as JSON"},
-	"help_help":    {"zh-CN": "帮助信息", "en-US": "Help information"},
+	"help_json":          {"zh-CN": "扫描硬件，输出 JSON", "en-US": "Scan hardware, output as JSON"},
+	"help_lang_example":  {"zh-CN": "扫描硬件，英文输出", "en-US": "Scan hardware, English output"},
+	"help_help":          {"zh-CN": "帮助信息", "en-US": "Help information"},
 	"unknown_cmd":  {"zh-CN": "未知命令", "en-US": "Unknown command"},
 	"scan_result":  {"zh-CN": "超频大师 OCMaster 扫描结果", "en-US": "OCMaster Scan Result"},
 	"cpu":          {"zh-CN": "CPU", "en-US": "CPU"},
@@ -91,16 +91,13 @@ func main() {
 }
 
 func printHelp() {
-	fmt.Printf(`%s
-
-  ocmaster scan                  %s
-  ocmaster scan --out json       %s
-  ocmaster scan --lang en-US     %s
-  ocmaster version
-  ocmaster help                  %s
-`, t("help_title"), t("help_scan"), t("help_json"),
-		strings.Replace(t("help_scan"), "文本表格", "English", 1),
-		t("help_help"))
+	fmt.Print(t("help_title"))
+	fmt.Print("\n\n")
+	fmt.Printf("  ocmaster scan                  %s\n", t("help_scan"))
+	fmt.Printf("  ocmaster scan --out json       %s\n", t("help_json"))
+	fmt.Printf("  ocmaster --lang en-US scan     %s\n", t("help_lang_example"))
+	fmt.Print("  ocmaster version\n")
+	fmt.Printf("  ocmaster help                  %s\n", t("help_help"))
 }
 
 func runScan(format string) {
