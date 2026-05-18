@@ -18,12 +18,18 @@ Write-Host "=========================================" -ForegroundColor Cyan
 Push-Location $ScannerDir
 
 try {
+    # 读取版本号
+    $Version = (Get-Content "$ScriptDir\..\VERSION" -ErrorAction SilentlyContinue | ForEach-Object { $_.Trim() }) -join ""
+    if (-not $Version) { $Version = "dev" }
+    $LdFlags = "-s -w -X main.version=$Version"
+    Write-Host "    Version: $Version" -ForegroundColor Gray
+
     # ---------- Windows CLI (exe) ----------
     Write-Host "`n==> [1] 构建 Windows CLI (ocmaster.exe)..." -ForegroundColor Yellow
     $env:CGO_ENABLED = "0"
     $env:GOOS = "windows"
     $env:GOARCH = "amd64"
-    go build -ldflags="-s -w" -o "$OutDir\ocmaster.exe" .\cmd\cli
+    go build -ldflags="$LdFlags" -o "$OutDir\ocmaster.exe" .\cmd\cli
     Write-Host "    -> $OutDir\ocmaster.exe ($((Get-Item "$OutDir\ocmaster.exe").Length / 1KB) KB)" -ForegroundColor Green
 
     # ---------- Windows DLL ----------

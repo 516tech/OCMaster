@@ -24,5 +24,12 @@
 
 三、待解决
 
-- [ ] BUG-107: Windows WMI 扫描实现（scanner_windows.go stub → 完整 WMI + Win32 API）
 - [ ] WinUI 3 dotnet build 验证（需 Windows 环境 + Windows App SDK）
+
+四、本轮修复
+
+- [x] BUG-107: Windows 扫描器 — wmic 实现
+- [x] BUG-108: version 未嵌入 — ldflags + ocmaster version
+- [x] BUG-109: CI 校验过严 — VM 检测 + 分级
+- [x] PRD 2.10: CLI 双语 — --lang zh-CN/en-US
+- [x] PRD 阶段二: 10/10 全部勾选

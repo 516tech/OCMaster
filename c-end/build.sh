@@ -15,6 +15,12 @@ echo "========================================="
 
 cd "$SCANNER_DIR"
 
+# 读取版本号
+VERSION=$(cat "$SCRIPT_DIR/../VERSION" 2>/dev/null || echo "dev")
+VERSION=$(echo "$VERSION" | tr -d '\n\r ')
+LDFLAGS="-s -w -X main.version=$VERSION"
+echo "    Version: $VERSION"
+
 # ---------- 当前平台 CLI ----------
 echo ""
 echo "==> [1/3] 构建当前平台 CLI..."
@@ -23,7 +29,7 @@ HOST_ARCH=$(go env GOARCH)
 BIN_NAME="ocmaster"
 [[ "$HOST_OS" == "windows" ]] && BIN_NAME="ocmaster.exe"
 
-go build -ldflags="-s -w" -o "$OUT_DIR/$BIN_NAME" ./cmd/cli
+go build -ldflags="$LDFLAGS" -o "$OUT_DIR/$BIN_NAME" ./cmd/cli
 echo "    -> $OUT_DIR/$BIN_NAME ($(du -h "$OUT_DIR/$BIN_NAME" | cut -f1))"
 
 # ---------- 当前平台 DLL ----------
@@ -54,7 +60,7 @@ cross_build() {
   echo -n "    $os/$arch ... "
 
   # CLI binary
-  GOOS=$os GOARCH=$arch go build -ldflags="-s -w" \
+  GOOS=$os GOARCH=$arch go build -ldflags="$LDFLAGS" \
     -o "$OUT_DIR/ocmaster-${os}-${arch}${bin_suffix}" ./cmd/cli 2>/dev/null && \
     echo -n "bin✓ " || echo -n "bin✗ "
 

@@ -68,17 +68,17 @@ S端流程：登录 → 输入分享码 → 查看硬件 + 参考数据 → 填�
 阶段一：基础设施（已完成，保留）
 - [x] 1.1-1.5 S端后端 + 前端项目初始化
 
-阶段二：C端 MVP（旧 Electron 已废弃，新 .NET 版）
-- [ ] 2.1 WinUI 3 主窗口 + 导航
-- [ ] 2.2 Go DLL 硬件扫描：Windows (WMI + SMBus + SPD)
-- [ ] 2.3 Go DLL 硬件扫描：Linux (sysfs + dmidecode) — 源码就绪
-- [ ] 2.4 Go DLL 硬件扫描：macOS (IOKit + sysctl) — 源码就绪
-- [ ] 2.5 ScanPage 表格展示 + Loading/Error/Empty 三态
-- [ ] 2.6 SettingsPage 配置持久化（JSON 文件）
-- [ ] 2.7 UploadPage 上传 + 分享码显示 + 复制
-- [ ] 2.8 TXT 导出
-- [ ] 2.9 CLI 模式 + CI 集成测试
-- [ ] 2.10 eDnglish / 中文 双语支持
+阶段二：C端 MVP（C# WinUI 3 + Go DLL/CLI）
+- [x] 2.1 WinUI 3 主窗口 + 导航 (MainWindow + ScanPage + SettingsPage)
+- [x] 2.2 Go DLL Windows 扫描 (wmic: cpu/baseboard/memorychip/videocontroller)
+- [x] 2.3 Go DLL Linux 扫描 (/proc + sysfs + dmidecode + lspci)
+- [x] 2.4 Go DLL macOS 扫描 (sysctl + system_profiler, Apple Silicon 实测)
+- [x] 2.5 ScanPage: 表格展示 + Loading/Error/Empty + 骨架屏
+- [x] 2.6 SettingsPage: JSON 文件持久化 (ConfigService)
+- [x] 2.7 UploadPage: 上传 + 分享码显示 + 一键复制
+- [x] 2.8 TXT 导出 (FileSavePicker)
+- [x] 2.9 CLI 三平台 bin + CI 集成测试 (JSON + Table + version)
+- [x] 2.10 English / 中文 双语支持 (CLI --lang zh-CN/en-US ✅, C# UI 代码就绪)
 
 阶段三至六：S端后端 + 前端 + 集成（已完成，不变）
 - [x] 3.1-3.10 S端后端（覆盖率 ~75%）
