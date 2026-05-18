@@ -28,7 +28,8 @@
 
 四、本轮修复
 
-- [x] BUG-110: CI help 中文编码失败 — UTF-8 设置 + ASCII 关键词校验
+- [x] BUG-110: CI help 测试失败 — PowerShell 数组 match + Out-String 修复
+- [x] BUG-111: CI 所有捕获步骤统一加 Out-String (6/6 steps 修复)
 - [x] help 输出 bug: --lang en-US 行显示中文 → 用翻译 key 替代 hack
 - [x] 三平台静态编译: CGO_ENABLED=0 CLI bin
 - [x] CI 全功能集成测试: 6-step
