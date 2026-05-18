@@ -7,15 +7,12 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VER=$(cat "$ROOT/VERSION" | tr -d '[:space:]')
 echo "Syncing version: $VER"
 
-# C端
-cd "$ROOT/c-end"
-npm pkg set version="$VER" --json > /dev/null 2>&1 || true
-
 # S端前端
 cd "$ROOT/s-end/frontend"
 npm pkg set version="$VER" --json > /dev/null 2>&1 || true
+echo "  s-end/frontend/package.json → $VER"
 
-# electron-builder 产物名（通过 env 传递）
-echo "VERSION=$VER" > "$ROOT/.version.env"
+# C端 Go CLI: build.sh / build.ps1 自动读取 VERSION 文件嵌入 ldflags
+echo "  C端 Go build 脚本自动读取 VERSION"
 
 echo "Version synced to $VER"

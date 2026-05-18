@@ -14,6 +14,8 @@ jobs:
   # ====== Go CLI + DLL 构建与集成测试 ======
   go-build:
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.value }}
     steps:
       - uses: actions/checkout@v4
 
@@ -106,3 +108,25 @@ jobs:
         run: |
           cd s-end/backend
           go test ./... -cover
+
+  # ====== Release ======
+  release:
+    needs: go-build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: OCMaster-Go-CLI
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.go-build.outputs.version }}
+          name: OCMaster v${{ needs.go-build.outputs.version }}
+          files: |
+            ocmaster.exe
+            hardware_scanner.dll
+          draft: false
+          prerelease: false
+          generate_release_notes: true

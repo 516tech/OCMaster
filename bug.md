@@ -28,8 +28,8 @@
 
 四、本轮修复
 
+- [x] sync-version.sh — 移除 Electron C端引用，适配新架构
 - [x] BUG-107: Windows 扫描器 — wmic 实现
 - [x] BUG-108: version 未嵌入 — ldflags + ocmaster version
 - [x] BUG-109: CI 校验过严 — VM 检测 + 分级
 - [x] PRD 2.10: CLI 双语 — --lang zh-CN/en-US
-- [x] PRD 阶段二: 10/10 全部勾选
