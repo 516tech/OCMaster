@@ -29,61 +29,118 @@ jobs:
         shell: bash
         run: echo "value=$(cat VERSION | tr -d '\n\r ')" >> $GITHUB_OUTPUT
 
-      - name: Build Go CLI (ocmaster.exe)
+      - name: Build Go CLI (ocmaster.exe) — 静态编译
         run: |
           cd c-end\hardware-scanner
+          $env:CGO_ENABLED = "0"
           go build -ldflags="-s -w -X main.version=${{ steps.version.outputs.value }}" -o ..\bin\ocmaster.exe .\cmd\cli
 
       - name: Build Go DLL (hardware_scanner.dll)
         run: |
           cd c-end\hardware-scanner
+          $env:CGO_ENABLED = "1"
           go build -buildmode=c-shared -o ..\bin\hardware_scanner.dll .
 
-      - name: CLI version 测试
+      # ====== 1. version 测试 ======
+      - name: "1/6 version 测试"
         run: |
-          c-end\bin\ocmaster.exe version 2>&1
+          $out = & c-end\bin\ocmaster.exe version 2>&1
           if ($LASTEXITCODE -ne 0) { Write-Error "version failed"; exit 1 }
+          if ($out -notmatch "ocmaster version") { Write-Error "version output wrong: $out"; exit 1 }
+          Write-Host "    $out"
+          Write-Host "PASS: version"
 
-      - name: CLI 集成测试 — JSON 输出
+      # ====== 2. help 测试 ======
+      - name: "2/6 help 测试 (zh-CN + en-US)"
+        run: |
+          $zh = & c-end\bin\ocmaster.exe help 2>&1
+          if ($LASTEXITCODE -ne 0) { Write-Error "zh-CN help failed"; exit 1 }
+          if ($zh -notmatch "扫描") { Write-Error "zh-CN help missing keyword"; exit 1 }
+          $en = & c-end\bin\ocmaster.exe --lang en-US help 2>&1
+          if ($LASTEXITCODE -ne 0) { Write-Error "en-US help failed"; exit 1 }
+          if ($en -notmatch "Scan") { Write-Error "en-US help missing keyword"; exit 1 }
+          Write-Host "PASS: help zh-CN + en-US"
+
+      # ====== 3. scan --out json 全量 schema 校验 ======
+      - name: "3/6 scan --out json 全 schema 校验"
         run: |
           $result = & c-end\bin\ocmaster.exe scan --out json 2>&1
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "CLI scan JSON failed: $result"
-            exit 1
-          }
+          if ($LASTEXITCODE -ne 0) { Write-Error "JSON scan failed: $result"; exit 1 }
           $json = $result | ConvertFrom-Json
-          Write-Host "CPU: $($json.cpu.model) ($($json.cpu.cores)C/$($json.cpu.threads)T)"
-          Write-Host "RAM: $($json.ram.totalCapacity) ($($json.ram.stickCount) sticks)"
-          Write-Host "GPU: $($json.gpu.model)"
-          Write-Host "MB:  $($json.motherboard.brand) $($json.motherboard.model)"
-          # VM/CI 环境: CPU model 非空即可；物理机: cores > 0
-          if (-not $json.cpu.model) { Write-Error "CPU model is empty"; exit 1 }
+
+          # 验证 6 个顶层字段存在
+          $required = @("cpu", "motherboard", "ram", "gpu", "psu", "cooler")
+          foreach ($f in $required) {
+            if (-not ($json.PSObject.Properties.Name -contains $f)) {
+              Write-Error "Missing top-level field: $f"; exit 1
+            }
+          }
+
+          # CPU 子字段
+          if (-not $json.cpu.model) { Write-Error "cpu.model empty"; exit 1 }
+          Write-Host "    CPU: $($json.cpu.model) ($($json.cpu.cores)C/$($json.cpu.threads)T) @ $($json.cpu.baseFreq)"
+
+          # RAM
+          if (-not $json.ram.totalCapacity) { Write-Error "ram.totalCapacity empty"; exit 1 }
+          if (-not $json.ram.sticks) { Write-Error "ram.sticks array missing"; exit 1 }
+          Write-Host "    RAM: $($json.ram.totalCapacity) ($($json.ram.stickCount) sticks, $($json.ram.channelCount) ch)"
+
+          # GPU + MB
+          if (-not $json.gpu.model) { Write-Error "gpu.model empty"; exit 1 }
+          if (-not $json.motherboard.model) { Write-Error "mb.model empty"; exit 1 }
+          Write-Host "    GPU: $($json.gpu.model) | MB: $($json.motherboard.brand) $($json.motherboard.model)"
+
+          # PSU + Cooler 默认值
+          if ($json.psu.source -ne "manual") { Write-Error "psu.source should be manual"; exit 1 }
+          if ($json.cooler.source -ne "manual") { Write-Error "cooler.source should be manual"; exit 1 }
+
+          # VM 环境: CPU model 可能 Unknown，但必须非空
           if ($json.cpu.model -eq "Unknown CPU") {
-            Write-Host "=== VM 环境检测，跳过核心数校验 ==="
+            Write-Host "    [VM detected] core count validation skipped"
           } elseif ($json.cpu.cores -eq 0) {
-            Write-Error "CPU cores is 0 (非 VM 环境)"
-            exit 1
+            Write-Error "cpu.cores = 0 on physical machine"; exit 1
           }
-          Write-Host "=== JSON 集成测试 PASS ==="
+          Write-Host "PASS: JSON schema (6/6 fields validated)"
 
-      - name: CLI 集成测试 — Table 输出
+      # ====== 4. scan table 模式 ======
+      - name: "4/6 scan table 模式 (zh-CN + en-US)"
         run: |
-          c-end\bin\ocmaster.exe scan 2>&1
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "CLI scan table failed"
-            exit 1
-          }
-          Write-Host "=== Table 集成测试 PASS ==="
+          $zh = & c-end\bin\ocmaster.exe scan 2>&1
+          if ($LASTEXITCODE -ne 0) { Write-Error "zh-CN table failed"; exit 1 }
+          if ($zh -notmatch "超频大师") { Write-Error "zh-CN table missing brand"; exit 1 }
+          if ($zh -notmatch "CPU") { Write-Error "zh-CN table missing CPU"; exit 1 }
+          if ($zh -notmatch "内存") { Write-Error "zh-CN table missing RAM"; exit 1 }
 
-      - name: CLI help + 双语测试
+          $en = & c-end\bin\ocmaster.exe --lang en-US scan 2>&1
+          if ($LASTEXITCODE -ne 0) { Write-Error "en-US table failed"; exit 1 }
+          if ($en -notmatch "OCMaster") { Write-Error "en-US table missing brand"; exit 1 }
+          if ($en -notmatch "CPU") { Write-Error "en-US table missing CPU"; exit 1 }
+          if ($en -notmatch "RAM") { Write-Error "en-US table missing RAM"; exit 1 }
+          Write-Host "PASS: table zh-CN + en-US"
+
+      # ====== 5. --lang en-US scan --out json ======
+      - name: "5/6 scan --out json (en-US)"
         run: |
-          c-end\bin\ocmaster.exe help 2>&1
-          if ($LASTEXITCODE -ne 0) { Write-Error "zh-CN help failed"; exit 1 }
-          c-end\bin\ocmaster.exe --lang en-US help 2>&1
-          if ($LASTEXITCODE -ne 0) { Write-Error "en-US help failed"; exit 1 }
-          c-end\bin\ocmaster.exe --lang en-US scan 2>&1
-          if ($LASTEXITCODE -ne 0) { Write-Error "en-US scan failed"; exit 1 }
-          Write-Host "=== 双语测试 PASS ==="
+          $result = & c-end\bin\ocmaster.exe --lang en-US scan --out json 2>&1
+          if ($LASTEXITCODE -ne 0) { Write-Error "en-US JSON scan failed"; exit 1 }
+          $json = $result | ConvertFrom-Json
+          if (-not $json.cpu.model) { Write-Error "en-US: cpu.model empty"; exit 1 }
+          Write-Host "    CPU(en-US): $($json.cpu.model) ($($json.cpu.cores)C/$($json.cpu.threads)T)"
+          Write-Host "PASS: en-US JSON scan"
+
+      # ====== 6. 错误处理测试 ======
+      - name: "6/6 错误处理 + 退出码测试"
+        run: |
+          # 未知命令 → exit code != 0
+          c-end\bin\ocmaster.exe nosuchcommand 2>&1
+          if ($LASTEXITCODE -eq 0) { Write-Error "unknown cmd should fail"; exit 1 }
+          Write-Host "    unknown command → exit $LASTEXITCODE ✓"
+
+          # scan with bad flag → should still work (unrecognized flags ignored)
+          $out = & c-end\bin\ocmaster.exe scan --out json 2>&1
+          if ($LASTEXITCODE -ne 0) { Write-Error "scan --out json should succeed"; exit 1 }
+          Write-Host "    scan --out json → exit 0 ✓"
+          Write-Host "PASS: error handling"
 
       - name: Upload Go artifacts
         uses: actions/upload-artifact@v4

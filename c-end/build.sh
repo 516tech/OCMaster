@@ -29,24 +29,24 @@ HOST_ARCH=$(go env GOARCH)
 BIN_NAME="ocmaster"
 [[ "$HOST_OS" == "windows" ]] && BIN_NAME="ocmaster.exe"
 
-go build -ldflags="$LDFLAGS" -o "$OUT_DIR/$BIN_NAME" ./cmd/cli
-echo "    -> $OUT_DIR/$BIN_NAME ($(du -h "$OUT_DIR/$BIN_NAME" | cut -f1))"
+CGO_ENABLED=0 go build -ldflags="$LDFLAGS" -o "$OUT_DIR/$BIN_NAME" ./cmd/cli
+echo "    -> $OUT_DIR/$BIN_NAME ($(du -h "$OUT_DIR/$BIN_NAME" | cut -f1)) (static)"
 
-# ---------- 当前平台 DLL ----------
+# ---------- 当前平台 DLL (需要 CGO) ----------
 echo ""
-echo "==> [2/3] 构建当前平台动态库..."
+echo "==> [2/3] 构建当前平台动态库 (CGO)..."
 case "$HOST_OS" in
   darwin)
     DLL_NAME="libhardware_scanner.dylib"
-    go build -buildmode=c-shared -o "$OUT_DIR/$DLL_NAME" .
+    CGO_ENABLED=1 go build -buildmode=c-shared -o "$OUT_DIR/$DLL_NAME" .
     ;;
   linux)
     DLL_NAME="libhardware_scanner.so"
-    go build -buildmode=c-shared -o "$OUT_DIR/$DLL_NAME" .
+    CGO_ENABLED=1 go build -buildmode=c-shared -o "$OUT_DIR/$DLL_NAME" .
     ;;
   windows|mingw*)
     DLL_NAME="hardware_scanner.dll"
-    go build -buildmode=c-shared -o "$OUT_DIR/$DLL_NAME" .
+    CGO_ENABLED=1 go build -buildmode=c-shared -o "$OUT_DIR/$DLL_NAME" .
     ;;
 esac
 echo "    -> $OUT_DIR/$DLL_NAME ($(du -h "$OUT_DIR/$DLL_NAME" | cut -f1))"
@@ -59,8 +59,8 @@ cross_build() {
   local os=$1 arch=$2 bin_suffix=$3 dll_ext=$4 dll_name=$5
   echo -n "    $os/$arch ... "
 
-  # CLI binary
-  GOOS=$os GOARCH=$arch go build -ldflags="$LDFLAGS" \
+  # CLI binary (static)
+  CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -ldflags="$LDFLAGS" \
     -o "$OUT_DIR/ocmaster-${os}-${arch}${bin_suffix}" ./cmd/cli 2>/dev/null && \
     echo -n "bin✓ " || echo -n "bin✗ "
 
