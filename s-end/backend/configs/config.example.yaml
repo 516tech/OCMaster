@@ -1,0 +1,11 @@
+# 超频大师 S端后端配置示例
+# 本地开发无需此文件，所有配置均有默认值
+
+server.port: "8080"
+
+# 数据库：sqlite (本地开发，默认) / mysql (生产)
+db.type: "sqlite"
+db.path: "./data/ocmaster.db"
+# db.dsn: "root:password@tcp(127.0.0.1:3306)/ocmaster?charset=utf8mb4&parseTime=True&loc=Local"
+
+jwt.secret: "change-me-in-production"

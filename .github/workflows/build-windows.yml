@@ -1,0 +1,64 @@
+name: Build Windows C端
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    outputs:
+      exe_name: ${{ steps.package.outputs.exe_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies (含 node-gyp 编译 native addon)
+        run: npm ci
+        working-directory: c-end
+
+      - name: Build Vite
+        run: npm run build
+        working-directory: c-end
+
+      - name: Package Windows portable
+        id: package
+        run: |
+          $ver = (Get-Content ../VERSION).Trim()
+          npx electron-builder --win portable --x64
+          $exe = Get-ChildItem release/OCMaster*.exe | Select-Object -First 1
+          echo "exe_name=$($exe.Name)" >> $env:GITHUB_OUTPUT
+          echo "version=$ver" >> $env:GITHUB_OUTPUT
+        working-directory: c-end
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OCMaster-Windows
+          path: c-end/release/OCMaster*.exe
+
+  release:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: OCMaster-Windows
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.build.outputs.version }}
+          name: OCMaster v${{ needs.build.outputs.version }}
+          files: OCMaster*.exe
+          draft: false
+          prerelease: false
+          generate_release_notes: true

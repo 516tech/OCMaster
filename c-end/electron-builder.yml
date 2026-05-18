@@ -1,0 +1,60 @@
+appId: com.ocmaster.app
+productName: OCMaster
+directories:
+  output: release
+
+files:
+  - dist/**/*
+  - dist-electron/main.js
+  - dist-electron/preload.js
+  - node_modules/**/*
+  - "!dist-electron/win-unpacked/**"
+  - "!node_modules/electron/**"
+  - "!node_modules/typescript/**"
+  - "!node_modules/@babel/**"
+  - "!node_modules/@esbuild/**"
+  - "!node_modules/@rollup/**"
+  - "!node_modules/@vitejs/**"
+  - "!node_modules/@vitest/**"
+  - "!node_modules/@javascript-obfuscator/**"
+  - "!node_modules/@volar/**"
+  - "!node_modules/vite/**"
+  - "!node_modules/vitest/**"
+  - "!node_modules/electron-builder/**"
+  - "!node_modules/vue-tsc/**"
+  - "!node_modules/bytenode/**"
+  - "!node_modules/**/*.map"
+  - "!node_modules/**/*.ts"
+  - "!node_modules/**/*.md"
+
+win:
+  target:
+    - target: portable
+      arch: [x64]
+  icon: build/icon.ico
+
+mac:
+  target: dmg
+  icon: build/icon.icns
+
+linux:
+  target: AppImage
+  icon: build/icon.png
+
+asar: true
+
+# Native addon 打包：存到 resources/native/，asr 外可加载
+extraResources:
+  - from: electron/native/build/Release/
+    to: native/
+    filter: ['*.node']
+
+afterPack: ./scripts/afterPack.js
+
+nsis:
+  oneClick: true
+  perMachine: false
+
+electronLanguages:
+  - zh-CN
+  - en-US
