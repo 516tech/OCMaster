@@ -7,11 +7,15 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
     outputs:
       exe_name: ${{ steps.package.outputs.exe_name }}
+      version: ${{ steps.package.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 

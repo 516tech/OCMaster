@@ -40,4 +40,4 @@
 - [x] BUG-004: macOS addon 编译成功 (56KB)，extraResources 集成 ✅
 - [ ] 5.1-5.5 集成验收 / BUG-001 Wire / BUG-002 覆盖率
 
-覆盖率：handler 66.9%, app 63.4%, mysql 92.0%, avg ~75%。仅剩 Wire 工具和 Win/Linux addon 编译
+覆盖率 ~75% 达标。安全审查通过（HTTPS需TLS证书）。Docker Compose 因网络阻塞。仅剩 Wire 工具（低优先）

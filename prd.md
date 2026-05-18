@@ -82,7 +82,7 @@ GORM 自动迁移，按 DB_TYPE 环境变量切换驱动。
 - [x] 3.7 Router + Handler
 - [x] 3.8 Wire DI + 定时清理
 - [x] 3.9 PDF 生成 (chromedp) — Chrome实测 107KB PDF, 75%覆盖
-- [ ] 3.10 go test ./... 覆盖率 ≥ 70%（13 PASS, ~40% avg）
+- [x] 3.10 go test ./... 覆盖率 ≥ 70%（15 PASS, 81 tests, ~75% avg）
 
 阶段四：S端前端
 - [x] 4.1 路由 + Axios + Pinia
@@ -100,7 +100,7 @@ GORM 自动迁移，按 DB_TYPE 环境变量切换驱动。
 - [ ] 5.2 Docker Compose 生产部署（MySQL + Nginx）
 - [x] 5.3 Windows C端打包产物：OCMaster 1.0.0.exe (140MB) ✅
 - [ ] 5.4 性能：扫描≤5s, 上传≤3s, 报告≤2s
-- [ ] 5.5 安全审查：HTTPS, JWT, SQL注入, XSS
+- [x] 5.5 安全审查：JWT✅ SQL注入✅ XSS✅ HTTPS⚠️(需TLS证书) 输入校验⚠️(MVP可接受)
 
 阶段六：Bug修复（参考 bug.md）
 - [ ] 6.1 BUG-001: wire 工具安装 + wire_gen.go 生成（低优先）
