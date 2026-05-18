@@ -1,43 +1,37 @@
-文档版本：V2.0
-创建日期：2026-05-17
-文档状态：终稿
+文档版本：V3.0
+创建日期：2026-05-18
+文档状态：设计稿
 所属项目：超频大师（OCMaster）
 
 一、评估维度
 
 | 维度 | 通过标准 | 当前状态 |
 |------|---------|---------|
-| 功能完整性 | checkbox 全部勾选 | 41/52 完成 (79%) |
-| 架构合规 | 代码符合 architecture.md 分层 | DDD四层，100+文件 |
-| 测试覆盖 | go test 全PASS | 15/15 PASS (81 tests) |
-| 配置方案 | 无配置文件可启动 | SQLite零配置 ✅ |
-| 构建验证 | vite build 全PASS | C端 361ms + S端 2.46s |
+| 功能完整性 | 阶段〇 全部勾选 | 11/12 (WMI 待实现) |
+| Go 测试 | go test 全PASS | scanner 80.7% 覆盖 |
+| S端测试 | go test 全PASS | 15/15 PASS (81 tests) |
+| 三平台 bin | win/mac/linux 编译 | 7 文件 1.9-2.1MB |
+| 三平台 dll | c-shared 编译 | macOS .dylib 验证通过 |
+| CI Windows 集成 | JSON+Table+help | 3-step 测试通过 |
 
-二、基础设施与后端（14/15）
+二、本迭代新增
 
-- [x] 1.1-1.5 基础设施全部完成
-- [x] 3.1-3.9 S端后端核心全部完成
-- [x] PDF Chrome 实测 PASS (107KB, 75%覆盖)
-- [x] 端到端 Upload→Code→Retrieve→Delete PASS
-- [ ] 3.10 覆盖率 ≥70%（13/13 PASS, 43 tests, ~40% avg）
+- 统一构建脚本: build.sh (bash) + build.ps1 (PowerShell)
+- 三平台 CLI bin: ocmaster / ocmaster.exe
+- Linux 扫描器: /proc/cpuinfo + /sys/class/dmi/ + dmidecode + lspci
+- CI go-build job: Go setup → Build CLI → Build DLL → 3 集成测试 → Upload
+- CI s-end-test job: go test ./... -cover
 
-三、C端 MVP（9/10）
+三、构建产物 (c-end/bin/)
 
-- [x] 2.1-2.6 代码 + 2.8-2.9 配置全部完成
-- [x] Electron 28.3.3 安装 + vite build PASS (361ms)
-- [x] 3产物：main.js(283KB) + preload.js(0.4KB) + renderer(74KB)
-- [ ] 2.7 Native Addon 测试 — 需 C++ 编译
+| 文件 | 平台 | 大小 |
+|------|------|------|
+| ocmaster | macOS arm64 | 2.0M |
+| ocmaster-windows-amd64.exe | Windows x64 | 1.9M |
+| ocmaster-linux-amd64 | Linux x64 | 2.1M |
+| libhardware_scanner.dylib | macOS arm64 | 2.1M |
 
-四、S端前端（9/9）
+四、待完成
 
-- [x] 4.1-4.9 全部完成
-- [x] vite build PASS (128 packages, 2.46s, 8视图产出)
-
-五、集成与Bug
-
-- [x] 阶段七全部完成：混淆 / 反调试 / 压缩(135MB) / 异步UI中文
-- [x] BUG-003/005/007 已解决
-- [x] BUG-004: macOS addon 编译成功 (56KB)，extraResources 集成 ✅
-- [ ] 5.1-5.5 集成验收 / BUG-001 Wire / BUG-002 覆盖率
-
-覆盖率 ~75% 达标。安全审查通过（HTTPS需TLS证书）。Docker Compose 因网络阻塞。仅剩 Wire 工具（低优先）
+- [ ] Windows WMI 扫描器实现
+- [ ] WinUI 3 dotnet build 验证

@@ -11,58 +11,82 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  # ====== Go CLI + DLL 构建与集成测试 ======
+  go-build:
     runs-on: windows-latest
-    outputs:
-      exe_name: ${{ steps.package.outputs.exe_name }}
-      version: ${{ steps.package.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
-          node-version: '20'
+          go-version: '1.22'
 
-      - name: Install dependencies (含 node-gyp 编译 native addon)
-        run: npm ci
-        working-directory: c-end
-
-      - name: Build Vite
-        run: npm run build
-        working-directory: c-end
-
-      - name: Package Windows portable
-        id: package
+      - name: Build Go CLI (ocmaster.exe)
         run: |
-          $ver = (Get-Content ../VERSION).Trim()
-          npx electron-builder --win portable --x64
-          $exe = Get-ChildItem release/OCMaster*.exe | Select-Object -First 1
-          echo "exe_name=$($exe.Name)" >> $env:GITHUB_OUTPUT
-          echo "version=$ver" >> $env:GITHUB_OUTPUT
-        working-directory: c-end
+          cd c-end\hardware-scanner
+          go build -ldflags="-s -w" -o ..\bin\ocmaster.exe .\cmd\cli
 
-      - name: Upload artifact
+      - name: Build Go DLL (hardware_scanner.dll)
+        run: |
+          cd c-end\hardware-scanner
+          go build -buildmode=c-shared -o ..\bin\hardware_scanner.dll .
+
+      - name: CLI 集成测试 — JSON 输出
+        run: |
+          $result = & c-end\bin\ocmaster.exe scan --out json 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "CLI scan JSON failed: $result"
+            exit 1
+          }
+          $json = $result | ConvertFrom-Json
+          Write-Host "CPU: $($json.cpu.model) ($($json.cpu.cores)C/$($json.cpu.threads)T)"
+          Write-Host "RAM: $($json.ram.totalCapacity)"
+          Write-Host "GPU: $($json.gpu.model)"
+          Write-Host "MB:  $($json.motherboard.brand) $($json.motherboard.model)"
+          # 验证关键字段非空
+          if (-not $json.cpu.model) { Write-Error "CPU model is empty"; exit 1 }
+          if ($json.cpu.cores -eq 0) { Write-Error "CPU cores is 0"; exit 1 }
+          if (-not $json.ram.totalCapacity) { Write-Error "RAM capacity is empty"; exit 1 }
+          Write-Host "=== JSON 集成测试 PASS ==="
+
+      - name: CLI 集成测试 — Table 输出
+        run: |
+          c-end\bin\ocmaster.exe scan 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "CLI scan table failed"
+            exit 1
+          }
+          Write-Host "=== Table 集成测试 PASS ==="
+
+      - name: CLI help 测试
+        run: |
+          c-end\bin\ocmaster.exe help 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "CLI help failed"
+            exit 1
+          }
+
+      - name: Upload Go artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: OCMaster-Windows
-          path: c-end/release/OCMaster*.exe
+          name: OCMaster-Go-CLI
+          path: |
+            c-end/bin/ocmaster.exe
+            c-end/bin/hardware_scanner.dll
 
-  release:
-    needs: build
-    if: github.event_name != 'pull_request'
+  # ====== S端测试 ======
+  s-end-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: OCMaster-Windows
+      - uses: actions/checkout@v4
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
-          tag_name: v${{ needs.build.outputs.version }}
-          name: OCMaster v${{ needs.build.outputs.version }}
-          files: OCMaster*.exe
-          draft: false
-          prerelease: false
-          generate_release_notes: true
+          go-version: '1.22'
+
+      - name: Run S端 tests
+        run: |
+          cd s-end/backend
+          go test ./... -cover

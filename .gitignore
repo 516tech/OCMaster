@@ -1,8 +1,10 @@
 node_modules/
-dist/
-dist-electron/
-release/
-
+bin/
 .DS_Store
 *.db
 *.out
+*.dylib
+*.dll
+*.so
+*.exe
+*.h
