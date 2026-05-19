@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  # ====== Go CLI + DLL 构建与集成测试 ======
+  # ====== Go CLI 静态编译 + 全功能集成测试 ======
   go-build:
     runs-on: windows-latest
     outputs:
@@ -40,12 +40,6 @@ jobs:
           cd c-end\hardware-scanner
           $env:CGO_ENABLED = "0"
           go build -ldflags="-s -w -X main.version=${{ steps.version.outputs.value }}" -o ..\bin\ocmaster.exe .\cmd\cli
-
-      - name: Build Go DLL (hardware_scanner.dll)
-        run: |
-          cd c-end\hardware-scanner
-          $env:CGO_ENABLED = "1"
-          go build -buildmode=c-shared -o ..\bin\hardware_scanner.dll .
 
       # ====== 1. version 测试 ======
       - name: "1/6 version 测试"
@@ -146,13 +140,11 @@ jobs:
           Write-Host "    scan --out json → exit 0 ✓"
           Write-Host "PASS: error handling"
 
-      - name: Upload Go artifacts
+      - name: Upload Go artifact (static binary only)
         uses: actions/upload-artifact@v4
         with:
           name: OCMaster-Go-CLI
-          path: |
-            c-end/bin/ocmaster.exe
-            c-end/bin/hardware_scanner.dll
+          path: c-end/bin/ocmaster.exe
 
   # ====== S端测试 ======
   s-end-test:
@@ -185,9 +177,7 @@ jobs:
         with:
           tag_name: v${{ needs.go-build.outputs.version }}
           name: OCMaster v${{ needs.go-build.outputs.version }}
-          files: |
-            ocmaster.exe
-            hardware_scanner.dll
+          files: ocmaster.exe
           draft: false
           prerelease: false
           generate_release_notes: true

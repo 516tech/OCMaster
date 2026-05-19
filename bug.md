@@ -28,8 +28,8 @@
 
 四、本轮修复
 
-- [x] BUG-110: CI help 测试失败 — PowerShell 数组 match + Out-String 修复
-- [x] BUG-111: CI 所有捕获步骤统一加 Out-String (6/6 steps 修复)
+- [x] BUG-112: Release 含动态链接 DLL — 移除 hardware_scanner.dll，仅留静态 ocmaster.exe
+- [x] BUG-110/111: CI PowerShell Out-String + sticks null 修复 (前轮)
 - [x] help 输出 bug: --lang en-US 行显示中文 → 用翻译 key 替代 hack
 - [x] 三平台静态编译: CGO_ENABLED=0 CLI bin
 - [x] CI 全功能集成测试: 6-step

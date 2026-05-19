@@ -32,9 +32,9 @@ BIN_NAME="ocmaster"
 CGO_ENABLED=0 go build -ldflags="$LDFLAGS" -o "$OUT_DIR/$BIN_NAME" ./cmd/cli
 echo "    -> $OUT_DIR/$BIN_NAME ($(du -h "$OUT_DIR/$BIN_NAME" | cut -f1)) (static)"
 
-# ---------- 当前平台 DLL (需要 CGO) ----------
+# ---------- 当前平台 DLL (可选，CGO，给 C# P/Invoke 用) ----------
 echo ""
-echo "==> [2/3] 构建当前平台动态库 (CGO)..."
+echo "==> [2/3] 构建当前平台动态库 (可选)..."
 case "$HOST_OS" in
   darwin)
     DLL_NAME="libhardware_scanner.dylib"
