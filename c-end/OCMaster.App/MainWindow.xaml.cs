@@ -9,11 +9,21 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         this.InitializeComponent();
+        MainNav.SelectionChanged += OnNavSelectionChanged;
         ContentFrame.Navigate(typeof(ScanPage));
     }
 
-    private void SettingsBtn_Click(object sender, RoutedEventArgs e)
+    private void OnNavSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
-        ContentFrame.Navigate(typeof(SettingsPage));
+        if (args.SelectedItem is NavigationViewItem item)
+        {
+            switch (item.Tag?.ToString())
+            {
+                case "scan":     ContentFrame.Navigate(typeof(ScanPage)); break;
+                case "upload":   ContentFrame.Navigate(typeof(UploadPage)); break;
+                case "settings": ContentFrame.Navigate(typeof(SettingsPage)); break;
+                case "about":    ContentFrame.Navigate(typeof(AboutPage)); break;
+            }
+        }
     }
 }

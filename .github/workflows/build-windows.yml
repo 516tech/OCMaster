@@ -35,7 +35,7 @@ jobs:
         shell: bash
         run: echo "value=$(cat VERSION | tr -d '\n\r ')" >> $GITHUB_OUTPUT
 
-      - name: Build Go CLI (ocmaster.exe) — 静态编译
+      - name: Build Go CLI (静态编译)
         run: |
           cd c-end\hardware-scanner
           $env:CGO_ENABLED = "0"
@@ -140,11 +140,19 @@ jobs:
           Write-Host "    scan --out json → exit 0 ✓"
           Write-Host "PASS: error handling"
 
-      - name: Upload Go artifact (static binary only)
+      - name: Rename + Upload (Go-style versioned)
+        run: |
+          $ver = "${{ steps.version.outputs.value }}"
+          $name = "ocmaster_${ver}_windows_amd64.exe"
+          Rename-Item c-end\bin\ocmaster.exe $name
+          Write-Host "    -> c-end\bin\$name"
+          echo "artifact_name=$name" >> $env:GITHUB_ENV
+
+      - name: Upload Go artifact (versioned)
         uses: actions/upload-artifact@v4
         with:
           name: OCMaster-Go-CLI
-          path: c-end/bin/ocmaster.exe
+          path: c-end/bin/ocmaster_*.exe
 
   # ====== S端测试 ======
   s-end-test:
@@ -177,7 +185,7 @@ jobs:
         with:
           tag_name: v${{ needs.go-build.outputs.version }}
           name: OCMaster v${{ needs.go-build.outputs.version }}
-          files: ocmaster.exe
+          files: ocmaster_*.exe
           draft: false
           prerelease: false
           generate_release_notes: true

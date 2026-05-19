@@ -4,7 +4,7 @@ namespace OCMaster.App;
 
 public partial class App : Application
 {
-    private Window? _mainWindow;
+    public static Window CurrentWindow { get; private set; } = null!;
 
     public App()
     {
@@ -13,7 +13,7 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        _mainWindow = new MainWindow();
-        _mainWindow.Activate();
+        CurrentWindow = new MainWindow();
+        CurrentWindow.Activate();
     }
 }

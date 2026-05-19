@@ -44,16 +44,21 @@ Go DLL 包含三套平台实现，编译时 `//go:build` 选择：
 - `scanner_linux.go` — sysfs + dmidecode
 - `scanner_darwin.go` — IOKit + sysctl
 
-编译产物（三平台统一）：
+编译产物（Go 风格命名，静态编译）：
 
-| 平台 | CLI 可执行文件 | 动态库 |
-|------|--------------|--------|
-| Windows | `ocmaster.exe` | `hardware_scanner.dll` |
-| macOS | `ocmaster` | `libhardware_scanner.dylib` |
-| Linux | `ocmaster` | `libhardware_scanner.so` |
+| 平台 | CLI (静态) | 动态库 (可选) |
+|------|-----------|--------------|
+| Windows | `ocmaster_0.0.1_windows_amd64.exe` | `hardware_scanner.dll` |
+| macOS | `ocmaster_0.0.1_darwin_arm64` | `libhardware_scanner.dylib` |
+| Linux | `ocmaster_0.0.1_linux_amd64` | `libhardware_scanner.so` |
 
 构建命令：
-- CLI:  `go build -ldflags="-s -w" -o ocmaster ./cmd/cli`
+- CLI:  `CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=$VER" -o ocmaster_${VER}_${OS}_${ARCH} ./cmd/cli`
+- DLL:  `CGO_ENABLED=1 go build -buildmode=c-shared -o hardware_scanner.dll .`
+- WinUI 3 单文件: `dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true`
+- 一键: `.\build.ps1` (Windows 全流程)
+
+WinUI 3 单文件部署: Go DLL 作为 EmbeddedResource 嵌入 exe，首次运行时提取到 `%LOCALAPPDATA%\OCMaster\`。
 - DLL:  `go build -buildmode=c-shared -o hardware_scanner.dll .`
 - 一键: `bash build.sh` 或 `.\build.ps1`
 

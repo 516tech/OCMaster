@@ -29,8 +29,9 @@ try {
     $env:CGO_ENABLED = "0"
     $env:GOOS = "windows"
     $env:GOARCH = "amd64"
-    go build -ldflags="$LdFlags" -o "$OutDir\ocmaster.exe" .\cmd\cli
-    Write-Host "    -> $OutDir\ocmaster.exe ($((Get-Item "$OutDir\ocmaster.exe").Length / 1KB) KB)" -ForegroundColor Green
+    $name = "ocmaster_${Version}_windows_amd64.exe"
+    go build -ldflags="$LdFlags" -o "$OutDir\$name" .\cmd\cli
+    Write-Host "    -> $OutDir\$name ($((Get-Item "$OutDir\$name").Length / 1KB) KB)" -ForegroundColor Green
 
     # ---------- Windows DLL ----------
     Write-Host "`n==> [2] 构建 Windows DLL (hardware_scanner.dll)..." -ForegroundColor Yellow
@@ -38,9 +39,14 @@ try {
     go build -buildmode=c-shared -o "$OutDir\hardware_scanner.dll" .
     Write-Host "    -> $OutDir\hardware_scanner.dll ($((Get-Item "$OutDir\hardware_scanner.dll").Length / 1KB) KB)" -ForegroundColor Green
 
+    # 复制到 C# 项目目录 (供 embed + publish)
+    Copy-Item "$OutDir\hardware_scanner.dll" "$ScriptDir\OCMaster.App\" -Force
+    Write-Host "    -> 复制到 OCMaster.App\ (供嵌入资源)" -ForegroundColor Gray
+
     # ---------- 集成测试 ----------
     Write-Host "`n==> [3] 集成测试..." -ForegroundColor Yellow
-    $result = & "$OutDir\ocmaster.exe" scan --out json 2>&1
+    $name = "ocmaster_${Version}_windows_amd64.exe"
+    $result = & "$OutDir\$name" scan --out json 2>&1
     if ($LASTEXITCODE -eq 0) {
         Write-Host "    CLI scan PASS" -ForegroundColor Green
         $json = $result | ConvertFrom-Json
@@ -51,6 +57,27 @@ try {
         Write-Host "    CLI scan FAILED" -ForegroundColor Red
         Write-Host "    $result" -ForegroundColor Red
         exit 1
+    }
+
+    # ---------- WinUI 3 发布 (单文件 exe) ----------
+    Write-Host "`n==> [4] dotnet publish (单文件 exe)..." -ForegroundColor Yellow
+    Push-Location "$ScriptDir\OCMaster.App"
+    try {
+        dotnet publish -c Release -r win-x64 --self-contained `
+            -p:PublishSingleFile=true `
+            -p:WindowsAppSDKSelfContained=true `
+            -o "$OutDir\publish" 2>&1 | Select-Object -Last 3
+        if ($LASTEXITCODE -eq 0) {
+            $exe = Get-ChildItem "$OutDir\publish\OCMaster.App.exe" -ErrorAction SilentlyContinue
+            if ($exe) {
+                Write-Host "    -> $($exe.FullName) ($($exe.Length / 1MB) MB)" -ForegroundColor Green
+            }
+            Write-Host "    WinUI 3 single-file exe published" -ForegroundColor Green
+        } else {
+            Write-Host "    dotnet publish failed (可能未安装 .NET SDK，跳过)" -ForegroundColor Yellow
+        }
+    } finally {
+        Pop-Location
     }
 
     # ---------- 跨平台 (可选) ----------
@@ -65,8 +92,8 @@ try {
             $env:GOOS = $target.OS
             $env:GOARCH = $target.Arch
             $env:CGO_ENABLED = "0"
-            $name = "ocmaster-$($target.OS)-$($target.Arch)$($target.Ext)"
-            go build -ldflags="-s -w" -o "$OutDir\$name" .\cmd\cli
+            $name = "ocmaster_${Version}_$($target.OS)_$($target.Arch)$($target.Ext)"
+            go build -ldflags="$LdFlags" -o "$OutDir\$name" .\cmd\cli
             if ($LASTEXITCODE -eq 0) {
                 Write-Host " OK" -ForegroundColor Green
             }

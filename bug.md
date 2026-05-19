@@ -22,9 +22,14 @@
 - [x] BUG-105: HardwareInfo JSON schema 对齐 — Go ↔ C# ↔ S端一致
 - [x] BUG-106: Linux 硬件扫描实现 — /proc + sysfs + dmidecode + lspci
 
-三、待解决
+三、本轮修复
 
-- [ ] WinUI 3 dotnet build 验证（需 Windows 环境 + Windows App SDK）
+- [x] C# WinUI 3 完善: NavigationView + UploadPage + AboutPage + NativeInterop.IsAvailable
+- [x] csproj: 移除 EnableMsixTooling，DLL 路径改为 ..\bin\
+
+四、待解决
+
+- [ ] WinUI 3 dotnet build 验证（需 Windows 环境 + Windows App SDK + dotnet SDK）
 
 四、本轮修复
 

@@ -7,11 +7,15 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x64;ARM64</Platforms>
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
-    <PublishProfile>win-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
-    <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <!-- 单文件发布 -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <ApplicationIcon>Assets\ocmaster.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,11 +24,14 @@
     <PackageReference Include="System.Text.Json" Version="8.0.4" />
   </ItemGroup>
 
-  <!-- Go DLL 复制到输出目录 -->
+  <!-- Go DLL 嵌入为资源 (编译时需 copy 到项目目录) -->
   <ItemGroup>
-    <None Include="..\hardware-scanner\build\hardware_scanner.dll"
+    <EmbeddedResource Include="hardware_scanner.dll"
+                      Condition="Exists('hardware_scanner.dll')"
+                      LogicalName="OCMaster.App.hardware_scanner.dll" />
+    <None Include="..\bin\hardware_scanner_*.dll"
           CopyToOutputDirectory="PreserveNewest"
           Link="hardware_scanner.dll"
-          Condition="Exists('..\hardware-scanner\build\hardware_scanner.dll')" />
+          Condition="Exists('..\bin\hardware_scanner_*.dll')" />
   </ItemGroup>
 </Project>

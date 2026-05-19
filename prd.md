@@ -75,7 +75,9 @@ S端流程：登录 → 输入分享码 → 查看硬件 + 参考数据 → 填�
 - [x] 2.4 Go DLL macOS 扫描 (sysctl + system_profiler, Apple Silicon 实测)
 - [x] 2.5 ScanPage: 表格展示 + Loading/Error/Empty + 骨架屏
 - [x] 2.6 SettingsPage: JSON 文件持久化 (ConfigService)
-- [x] 2.7 UploadPage: 上传 + 分享码显示 + 一键复制
+- [x] 2.7 UploadPage: 扫描→上传→分享码→复制→删除，隐私提示
+- [x] 2.7a AboutPage: 版本信息 + 技术栈
+- [x] 2.7b MainWindow: NavigationView 四页导航
 - [x] 2.8 TXT 导出 (FileSavePicker)
 - [x] 2.9 CLI 三平台 bin + CI 集成测试 (JSON + Table + version)
 - [x] 2.10 English / 中文 双语支持 (CLI --lang zh-CN/en-US ✅, C# UI 代码就绪)

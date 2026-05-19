@@ -3,17 +3,15 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="超频大师 OCMaster" Height="680" Width="960">
 
-    <Grid RowDefinitions="Auto,*">
-        <!-- Header -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Stretch"
-                    Padding="16,12" Background="{ThemeResource CardBackgroundFillColorDefault}">
-            <TextBlock Text="超频大师 OCMaster" FontSize="22" FontWeight="SemiBold"
-                       VerticalAlignment="Center" Margin="0,0,20,0" />
-            <Button x:Name="SettingsBtn" Content="设置" Click="SettingsBtn_Click"
-                    HorizontalAlignment="Right" Margin="20,0,0,0" />
-        </StackPanel>
+    <NavigationView x:Name="MainNav" IsSettingsVisible="False"
+                    PaneDisplayMode="Top" IsBackButtonVisible="Collapsed">
+        <NavigationView.MenuItems>
+            <NavigationViewItem Icon="Scan"    Content="硬件扫描" Tag="scan" />
+            <NavigationViewItem Icon="Upload"  Content="上传分享" Tag="upload" />
+            <NavigationViewItem Icon="Setting" Content="设置"     Tag="settings" />
+            <NavigationViewItem Icon="Help"    Content="关于"     Tag="about" />
+        </NavigationView.MenuItems>
 
-        <!-- Content Frame -->
-        <Frame Grid.Row="1" x:Name="ContentFrame" Padding="24" />
-    </Grid>
+        <Frame x:Name="ContentFrame" Padding="24" />
+    </NavigationView>
 </Window>

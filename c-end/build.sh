@@ -29,8 +29,8 @@ HOST_ARCH=$(go env GOARCH)
 BIN_NAME="ocmaster"
 [[ "$HOST_OS" == "windows" ]] && BIN_NAME="ocmaster.exe"
 
-CGO_ENABLED=0 go build -ldflags="$LDFLAGS" -o "$OUT_DIR/$BIN_NAME" ./cmd/cli
-echo "    -> $OUT_DIR/$BIN_NAME ($(du -h "$OUT_DIR/$BIN_NAME" | cut -f1)) (static)"
+CGO_ENABLED=0 go build -ldflags="$LDFLAGS" -o "$OUT_DIR/ocmaster_${VERSION}_${HOST_OS}_${HOST_ARCH}" ./cmd/cli
+echo "    -> $OUT_DIR/ocmaster_${VERSION}_${HOST_OS}_${HOST_ARCH} ($(du -h "$OUT_DIR/ocmaster_${VERSION}_${HOST_OS}_${HOST_ARCH}" | cut -f1)) (static)"
 
 # ---------- 当前平台 DLL (可选，CGO，给 C# P/Invoke 用) ----------
 echo ""
@@ -59,9 +59,9 @@ cross_build() {
   local os=$1 arch=$2 bin_suffix=$3 dll_ext=$4 dll_name=$5
   echo -n "    $os/$arch ... "
 
-  # CLI binary (static)
+  # CLI binary (static) — Go 风格: ocmaster_0.0.1_linux_amd64
   CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -ldflags="$LDFLAGS" \
-    -o "$OUT_DIR/ocmaster-${os}-${arch}${bin_suffix}" ./cmd/cli 2>/dev/null && \
+    -o "$OUT_DIR/ocmaster_${VERSION}_${os}_${arch}${bin_suffix}" ./cmd/cli 2>/dev/null && \
     echo -n "bin✓ " || echo -n "bin✗ "
 
   # DLL

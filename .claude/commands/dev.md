@@ -3,8 +3,8 @@
 原则：有任何疑问，第一时间向我提问
 要求：所有文档行数不超过200，表格不超过3个，同级别标题不超过5个
 目标：参考prd.md，如果方案有变更，重写prd.md
-过程：分step进行，step 1计划，step 2实现，step 3评估，step 4总结
-提示：如果搜索，使用browser harness 
+搜索：使用browser harness 
+编译：github action
 
 # step 1
 
