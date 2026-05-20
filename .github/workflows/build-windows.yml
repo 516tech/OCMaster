@@ -79,29 +79,22 @@ jobs:
 
       - name: "4/4 error handling"
         run: |
-          c-end\bin\ocmaster.exe nosuchcommand 2>$null
-          if ($LASTEXITCODE -eq 0) { throw "unknown cmd should fail" }
-          Write-Host "PASS: error handling"
+          $p = Start-Process -FilePath "c-end\bin\ocmaster.exe" -ArgumentList "nosuchcommand" -NoNewWindow -Wait -PassThru
+          if ($p.ExitCode -eq 0) { throw "unknown cmd should fail (exit 0)" }
+          Write-Host "PASS: error handling (exit $($p.ExitCode))"
 
       # ====== Go DLL (c-shared) ======
       - name: Build Go DLL + Copy to C# project
         run: |
           cd c-end\hardware-scanner
-          Write-Host "    Checking CGO toolchain..."
-          go env CGO_ENABLED CC CXX 2>&1 | Write-Host
           $env:CGO_ENABLED = "1"
-          $result = go build -buildmode=c-shared -o ..\bin\hardware_scanner.dll . 2>&1
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "    go build failed: $result"
-            Write-Host "    DLL build skipped — GUI will work without hardware scanning"
-            exit 0
+          go build -buildmode=c-shared -o ..\bin\hardware_scanner.dll . 2>&1 | Write-Host
+          if (Test-Path ..\bin\hardware_scanner.dll) {
+            Copy-Item ..\bin\hardware_scanner.dll ..\OCMaster.App\ -Force
+            Write-Host "    DLL built + copied"
+          } else {
+            Write-Host "    DLL build skipped (CGO not available) — GUI will be CLI-only"
           }
-          if (-not (Test-Path ..\bin\hardware_scanner.dll)) {
-            Write-Host "    DLL not found — GUI will work without hardware scanning"
-            exit 0
-          }
-          Copy-Item ..\bin\hardware_scanner.dll ..\OCMaster.App\ -Force
-          Write-Host "    DLL built + copied"
 
       # ====== WinUI 3 单文件发布 (GUI + CLI 双模式) ======
       - name: dotnet publish (单文件 exe)
