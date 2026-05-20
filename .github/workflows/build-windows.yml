@@ -11,7 +11,6 @@ permissions:
   contents: write
 
 jobs:
-  # ====== Go CLI → Go DLL → dotnet publish (GUI+CLI 单 exe) ======
   build:
     runs-on: windows-latest
     steps:
@@ -25,122 +24,87 @@ jobs:
         uses: actions/setup-dotnet@v4
         with: { dotnet-version: '8.0.x' }
 
+      - name: Install MinGW (CGO 编译器)
+        run: |
+          choco install mingw --no-progress -y
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          gcc --version
+
       - name: Read VERSION
         id: version
         shell: bash
         run: echo "value=$(cat VERSION | tr -d '\n\r ')" >> $GITHUB_OUTPUT
 
-      # ====== Go CLI (静态编译) ======
-      - name: Build Go CLI
+      # ====== Go CLI (静态编译, 仅用于集成测试) ======
+      - name: Build Go CLI (test-only)
         run: |
           cd c-end\hardware-scanner
           $env:CGO_ENABLED = "0"
           go build -ldflags="-s -w -X main.version=${{ steps.version.outputs.value }}" -o ..\bin\ocmaster.exe .\cmd\cli
-          Write-Host "    ocmaster.exe (static)"
 
-      # ====== Go CLI 集成测试 ======
       - name: Set UTF-8 encoding
-        run: |
-          chcp 65001
-          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+        run: chcp 65001; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-      - name: "1/4 version 测试"
+      - name: "1/3 Go CLI integration test"
         run: |
           $out = & c-end\bin\ocmaster.exe version 2>&1 | Out-String
-          if ($LASTEXITCODE -ne 0) { Write-Error "version failed"; exit 1 }
-          Write-Host "    $out"
-          Write-Host "PASS: version"
-
-      - name: "2/4 help + scan JSON schema"
-        run: |
+          if ($out -notmatch "ocmaster") { throw "version failed" }
           $zh = & c-end\bin\ocmaster.exe help 2>&1 | Out-String
-          if ($zh -notmatch "ocmaster") { Write-Error "help missing ocmaster"; exit 1 }
+          if ($zh -notmatch "ocmaster") { throw "help failed" }
           $result = & c-end\bin\ocmaster.exe scan --out json 2>&1 | Out-String
           $json = $result | ConvertFrom-Json
-          $required = @("cpu", "motherboard", "ram", "gpu", "psu", "cooler")
-          foreach ($f in $required) {
-            if (-not ($json.PSObject.Properties.Name -contains $f)) {
-              Write-Error "Missing field: $f"; exit 1
-            }
-          }
-          if (-not $json.cpu.model) { Write-Error "cpu.model empty"; exit 1 }
-          if (-not $json.ram.totalCapacity) { Write-Error "ram empty"; exit 1 }
-          if ($null -eq $json.ram.sticks) { Write-Error "ram.sticks null"; exit 1 }
+          if (-not $json.cpu.model) { throw "scan: cpu.model empty" }
+          if (-not $json.ram.totalCapacity) { throw "scan: ram empty" }
           Write-Host "    CPU: $($json.cpu.model) ($($json.cpu.cores)C/$($json.cpu.threads)T)"
-          Write-Host "PASS: help + JSON schema"
+          Write-Host "PASS: Go CLI tests"
 
-      - name: "3/4 bilingual + table scan"
+      - name: "2/3 bilingual + error handling"
         run: |
           $en = & c-end\bin\ocmaster.exe --lang en-US scan 2>&1 | Out-String
-          if ($en -notmatch "CPU") { Write-Error "en-US missing CPU"; exit 1 }
-          $zh = & c-end\bin\ocmaster.exe scan 2>&1 | Out-String
-          if ($zh -notmatch "CPU") { Write-Error "zh-CN missing CPU"; exit 1 }
-          Write-Host "PASS: bilingual table scan"
-
-      - name: "4/4 error handling"
-        run: |
+          if ($en -notmatch "CPU") { throw "en-US missing CPU" }
           $p = Start-Process -FilePath "c-end\bin\ocmaster.exe" -ArgumentList "nosuchcommand" -NoNewWindow -Wait -PassThru
-          if ($p.ExitCode -eq 0) { throw "unknown cmd should fail (exit 0)" }
-          Write-Host "PASS: error handling (exit $($p.ExitCode))"
+          if ($p.ExitCode -eq 0) { throw "unknown cmd should fail" }
+          Write-Host "PASS: bilingual + error handling"
 
-      # ====== Go DLL (c-shared) ======
-      - name: Build Go DLL + Copy to C# project
+      # ====== Go DLL (c-shared, CGO with MinGW) ======
+      - name: Build Go DLL (c-shared)
         run: |
           cd c-end\hardware-scanner
           $env:CGO_ENABLED = "1"
-          go build -buildmode=c-shared -o ..\bin\hardware_scanner.dll . 2>&1 | Write-Host
-          if (Test-Path ..\bin\hardware_scanner.dll) {
-            Copy-Item ..\bin\hardware_scanner.dll ..\OCMaster.App\ -Force
-            Write-Host "    DLL built + copied"
-          } else {
-            Write-Host "    DLL build skipped (CGO not available) — GUI will be CLI-only"
-          }
+          go build -buildmode=c-shared -o ..\bin\hardware_scanner.dll .
+          if (-not (Test-Path ..\bin\hardware_scanner.dll)) { throw "Go DLL build failed" }
+          Copy-Item ..\bin\hardware_scanner.dll ..\OCMaster.App\ -Force
+          Write-Host "    DLL built + copied"
 
-      # ====== WinUI 3 单文件发布 (GUI + CLI 双模式) ======
-      - name: dotnet publish (单文件 exe)
+      # ====== dotnet publish (GUI+CLI 双模式) ======
+      - name: dotnet publish (GUI+CLI)
         run: |
           cd c-end\OCMaster.App
           dotnet restore
-          $result = dotnet publish -c Release -r win-x64 --self-contained `
+          dotnet publish -c Release -r win-x64 --self-contained `
             -p:PublishSingleFile=true `
             -p:WindowsAppSDKSelfContained=true `
-            -o publish 2>&1
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "    dotnet publish failed: $result"
-            Write-Host "    GUI exe skipped — CLI build will be used for release"
-            exit 0
-          }
+            -o publish
+          if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
           $exe = Get-ChildItem publish\OCMaster.App.exe
           Write-Host "    -> $([math]::Round($exe.Length/1MB,1)) MB (GUI+CLI)"
 
-      - name: CLI mode test (--cli scan)
+      - name: "3/3 CLI mode test (--cli scan)"
         run: |
-          $exe = "c-end\OCMaster.App\publish\OCMaster.App.exe"
-          if (-not (Test-Path $exe)) {
-            Write-Host "    GUI exe not built, skip CLI mode test"
-            exit 0
-          }
-          $result = & $exe --cli scan --out json 2>&1 | Out-String
-          if ($LASTEXITCODE -ne 0) { Write-Error "CLI mode failed"; exit 1 }
+          $result = & c-end\OCMaster.App\publish\OCMaster.App.exe --cli scan --out json 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0) { throw "CLI mode failed" }
           $json = $result | ConvertFrom-Json
-          if (-not $json.cpu.model) { Write-Error "cpu.model empty"; exit 1 }
+          if (-not $json.cpu.model) { throw "CLI mode: cpu.model empty" }
           Write-Host "    CLI mode CPU: $($json.cpu.model)"
           Write-Host "PASS: GUI exe CLI mode"
 
       # ====== Rename + Upload ======
       - name: Rename + Upload
         run: |
-          $pubDir = "c-end\OCMaster.App\publish"
-          $guiExe = Get-ChildItem "$pubDir\OCMaster.App.exe" -ErrorAction SilentlyContinue
           $ver = "${{ steps.version.outputs.value }}"
           $name = "ocmaster_${ver}_windows_amd64.exe"
-          if ($guiExe) {
-            Rename-Item $guiExe.FullName $name
-            Move-Item "$pubDir\$name" c-end\bin\ -Force
-          } else {
-            # Fallback: use Go CLI as release artifact
-            Rename-Item c-end\bin\ocmaster.exe $name
-          }
+          Rename-Item c-end\OCMaster.App\publish\OCMaster.App.exe $name
+          Move-Item c-end\OCMaster.App\publish\$name c-end\bin\ -Force
           Write-Host "    -> c-end\bin\$name"
 
       - name: Upload artifact

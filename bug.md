@@ -34,9 +34,9 @@
 
 三、本轮修复
 
-- [x] BUG-115: arm64 交叉编译不可行，CI 改回单 amd64 全量 (GUI+CLI)
-- [x] CI 精简: 4-step Go CLI 测试 + Go DLL + dotnet publish + CLI mode test
-- [x] Release 单产物: ocmaster_0.0.1_windows_amd64.exe
+- [x] BUG-115: CI 安装 MinGW → CGO 可用 → Go DLL + dotnet publish GUI+CLI
+- [x] CI 移除所有 fallback: 任何步骤失败即中断，确保 Release 只有 GUI+CLI
+- [x] Release 单产物: ocmaster_0.0.1_windows_amd64.exe (GUI+CLI 双模式)
 
 四、待解决
 
