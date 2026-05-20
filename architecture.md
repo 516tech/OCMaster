@@ -52,7 +52,7 @@ Go DLL 包含三套平台实现，编译时 `//go:build` 选择：
 | 平台 | 架构 | 产物 | 模式 |
 |------|------|------|------|
 | Windows | amd64 | `ocmaster_0.0.1_windows_amd64.exe` | GUI + CLI |
-| Windows | arm64 | `ocmaster_0.0.1_windows_arm64.exe` | GUI + CLI |
+| Windows | arm64 | `ocmaster_0.0.1_windows_arm64.exe` | CLI only (无 arm64 CGO 交叉编译) |
 | macOS | arm64 | `ocmaster_0.0.1_darwin_arm64` | CLI only |
 | Linux | amd64 | `ocmaster_0.0.1_linux_amd64` | CLI only |
 

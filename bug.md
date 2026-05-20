@@ -34,9 +34,9 @@
 
 三、本轮修复
 
-- [x] CI matrix: amd64 + arm64 双架构 (Go + dotnet publish)
-- [x] CI GUI+CLI 双模式完整流水线: Go DLL → dotnet publish → CLI 模式测试
-- [x] architecture.md: 四平台产物矩阵
+- [x] BUG-115: arm64 CGO 交叉编译失败 — arm64 仅 CLI (CGO_ENABLED=0), amd64 全量
+- [x] CI matrix: amd64 (GUI+CLI) / arm64 (CLI only)
+- [x] CI 测试精简: 4-step (version/help+schema/bilingual/error) 双架构通用
 
 四、待解决
 
