@@ -77,15 +77,21 @@ jobs:
           Write-Host "    DLL built + copied"
 
       # ====== dotnet publish (GUI+CLI 双模式) ======
-      - name: dotnet publish (GUI+CLI)
+      - name: dotnet build (先验证 XAML)
         run: |
           cd c-end\OCMaster.App
-          dotnet restore
+          dotnet build -c Release -p:Platform=x64 2>&1 | Select-Object -Last 50
+          if ($LASTEXITCODE -ne 0) { throw "dotnet build failed" }
+          Write-Host "    XAML compilation OK"
+
+      - name: dotnet publish (单文件)
+        run: |
+          cd c-end\OCMaster.App
           dotnet publish -c Release -r win-x64 -p:Platform=x64 `
             -p:PublishSingleFile=true `
             -p:WindowsAppSDKSelfContained=true `
             -p:SelfContained=true `
-            -o publish
+            -o publish 2>&1 | Select-Object -Last 30
           if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
           $exe = Get-ChildItem publish\OCMaster.App.exe
           Write-Host "    -> $([math]::Round($exe.Length/1MB,1)) MB (GUI+CLI)"

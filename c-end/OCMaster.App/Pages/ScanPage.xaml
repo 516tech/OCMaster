@@ -4,7 +4,6 @@
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="16">
-            <!-- 扫描区域 -->
             <StackPanel HorizontalAlignment="Center" Spacing="8" Margin="0,20,0,0">
                 <Button x:Name="ScanBtn" Content="开始扫描" Click="ScanBtn_Click"
                         IsEnabled="{x:Bind IsNotScanning, Mode=OneWay}"
@@ -18,25 +17,22 @@
                            HorizontalAlignment="Center" FontSize="13" />
             </StackPanel>
 
-            <!-- 错误提示 -->
             <InfoBar x:Name="ErrorBar" Severity="Error" IsOpen="{x:Bind HasError, Mode=OneWay}"
                      Title="扫描失败" Message="{x:Bind ErrorMessage, Mode=OneWay}" />
 
-            <!-- DLL 未找到提示 -->
             <InfoBar x:Name="DllWarning" Severity="Warning" IsOpen="{x:Bind DllMissing, Mode=OneWay}"
                      Title="扫描模块未安装"
                      Message="请确认 hardware_scanner.dll 已编译并放在程序目录下" />
 
-            <!-- 硬件表格 -->
             <StackPanel x:Name="HardwarePanel" Visibility="{x:Bind HasHardware, Mode=OneWay}"
                         Spacing="4" Margin="0,8,0,0">
                 <TextBlock Text="硬件信息" FontSize="18" FontWeight="SemiBold" />
 
                 <Expander Header="CPU 处理器" IsExpanded="True">
                     <StackPanel Spacing="4" Padding="12,8">
-                        <TextBlock><Run Text="型号: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.Cpu.Model, Mode=OneWay}"/></TextBlock>
+                        <TextBlock><Run Text="型号: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.CPU.Model, Mode=OneWay}"/></TextBlock>
                         <TextBlock><Run Text="核心/线程: " FontWeight="SemiBold"/><Run Text="{x:Bind CpuCoresText, Mode=OneWay}"/></TextBlock>
-                        <TextBlock><Run Text="基频: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.Cpu.BaseFreq, Mode=OneWay}"/></TextBlock>
+                        <TextBlock><Run Text="基频: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.CPU.BaseFreq, Mode=OneWay}"/></TextBlock>
                     </StackPanel>
                 </Expander>
 
@@ -50,16 +46,16 @@
 
                 <Expander Header="内存 RAM" IsExpanded="False">
                     <StackPanel Spacing="4" Padding="12,8">
-                        <TextBlock><Run Text="总容量: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.Ram.TotalCapacity, Mode=OneWay}"/></TextBlock>
-                        <TextBlock><Run Text="条数: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.Ram.StickCount, Mode=OneWay}"/></TextBlock>
-                        <TextBlock><Run Text="通道: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.Ram.ChannelCount, Mode=OneWay}"/></TextBlock>
+                        <TextBlock><Run Text="总容量: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.RAM.TotalCapacity, Mode=OneWay}"/></TextBlock>
+                        <TextBlock><Run Text="条数: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.RAM.StickCount, Mode=OneWay}"/></TextBlock>
+                        <TextBlock><Run Text="通道: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.RAM.ChannelCount, Mode=OneWay}"/></TextBlock>
                     </StackPanel>
                 </Expander>
 
                 <Expander Header="显卡 GPU" IsExpanded="False">
                     <StackPanel Spacing="4" Padding="12,8">
-                        <TextBlock><Run Text="型号: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.Gpu.Model, Mode=OneWay}"/></TextBlock>
-                        <TextBlock><Run Text="显存: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.Gpu.VRAM, Mode=OneWay}"/></TextBlock>
+                        <TextBlock><Run Text="型号: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.GPU.Model, Mode=OneWay}"/></TextBlock>
+                        <TextBlock><Run Text="显存: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.GPU.VRAM, Mode=OneWay}"/></TextBlock>
                     </StackPanel>
                 </Expander>
 
