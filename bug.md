@@ -34,9 +34,9 @@
 
 三、本轮修复
 
-- [x] BUG-115: arm64 CGO 交叉编译失败 — arm64 仅 CLI (CGO_ENABLED=0), amd64 全量
-- [x] CI matrix: amd64 (GUI+CLI) / arm64 (CLI only)
-- [x] CI 测试精简: 4-step (version/help+schema/bilingual/error) 双架构通用
+- [x] BUG-115: arm64 交叉编译不可行，CI 改回单 amd64 全量 (GUI+CLI)
+- [x] CI 精简: 4-step Go CLI 测试 + Go DLL + dotnet publish + CLI mode test
+- [x] Release 单产物: ocmaster_0.0.1_windows_amd64.exe
 
 四、待解决
 
