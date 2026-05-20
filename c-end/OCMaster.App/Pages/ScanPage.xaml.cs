@@ -4,8 +4,7 @@ using OCMaster.App.Models;
 using OCMaster.App.Services;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using WinRT;
-
+using WinRT.Interop;
 namespace OCMaster.App.Pages;
 
 public sealed partial class ScanPage : Page, INotifyPropertyChanged

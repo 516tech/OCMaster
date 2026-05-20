@@ -14,29 +14,32 @@
 | 本地数据库 | SQLite (:memory: 测试 / 文件 开发) |
 | 生产数据库 | MySQL 8.0 (Docker Compose) |
 
-二、C端架构：C# WinUI 3 + Go DLL
+二、C端架构：单 exe 双模式 (GUI + CLI)
 
 ```
-┌──────────────────────────────────────────┐
-│ C# WinUI 3 Desktop App (MSIX / exe)      │
-│ ┌──────────┐  ┌──────────────────┐       │
-│ │ WinUI 3  │  │  Config Store    │       │
-│ │ Pages/   │  │  (JSON file)     │       │
-│ │ Controls │  └──────────────────┘       │
-│ │          │  ┌──────────────────┐       │
-│ │          │  │  HTTP Client     │───→ S端 API
-│ └──────────┘  └──────────────────┘       │
-│      │ P/Invoke                          │
-│      ▼                                   │
-│ ┌──────────────────────────────────┐     │
-│ │ hardware_scanner.dll (Go c-shared)│    │
-│ │ - ScanAll() → JSON               │     │
-│ │ - ScanCPU() → JSON               │     │
-│ │ - ScanRAM() → JSON               │     │
-│ │ - ScanGPU() → JSON               │     │
-│ │ - ScanMotherboard() → JSON       │     │
-│ └──────────────────────────────────┘     │
-└──────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│ ocmaster_0.0.1_windows_amd64.exe (单文件, ~100MB)│
+│                                                    │
+│  ┌─────────────────────────────────────────────┐  │
+│  │ WinUI 3 GUI (双击启动)                       │  │
+│  │  NavigationView: 扫描 | 上传 | 设置 | 关于    │  │
+│  │  Go DLL → 嵌入资源 → 首次提取到 %LOCALAPPDATA% │  │
+│  └─────────────────────────────────────────────┘  │
+│                      │                             │
+│  ┌─────────────────────────────────────────────┐  │
+│  │ CLI 模式 (--cli scan)                        │  │
+│  │  AttachConsole(-1) → 解析参数 → 扫描 → 输出   │  │
+│  │  ocmaster --cli scan --out json              │  │
+│  └─────────────────────────────────────────────┘  │
+│                                                    │
+│  .NET 8 Runtime (自包含) · Windows App SDK (自包含) │
+└──────────────────────────────────────────────────┘
+```
+
+Go 独立 CLI（macOS/Linux，纯静态）:
+```
+ocmaster_0.0.1_darwin_arm64 (2MB, CGO_ENABLED=0)
+ocmaster_0.0.1_linux_amd64  (2MB, CGO_ENABLED=0)
 ```
 
 Go DLL 包含三套平台实现，编译时 `//go:build` 选择：
@@ -44,13 +47,16 @@ Go DLL 包含三套平台实现，编译时 `//go:build` 选择：
 - `scanner_linux.go` — sysfs + dmidecode
 - `scanner_darwin.go` — IOKit + sysctl
 
-编译产物（Go 风格命名，静态编译）：
+编译产物（Go 风格命名，GUI+CLI 双模式）：
 
-| 平台 | CLI (静态) | 动态库 (可选) |
-|------|-----------|--------------|
-| Windows | `ocmaster_0.0.1_windows_amd64.exe` | `hardware_scanner.dll` |
-| macOS | `ocmaster_0.0.1_darwin_arm64` | `libhardware_scanner.dylib` |
-| Linux | `ocmaster_0.0.1_linux_amd64` | `libhardware_scanner.so` |
+| 平台 | 架构 | 产物 | 模式 |
+|------|------|------|------|
+| Windows | amd64 | `ocmaster_0.0.1_windows_amd64.exe` | GUI + CLI |
+| Windows | arm64 | `ocmaster_0.0.1_windows_arm64.exe` | GUI + CLI |
+| macOS | arm64 | `ocmaster_0.0.1_darwin_arm64` | CLI only |
+| Linux | amd64 | `ocmaster_0.0.1_linux_amd64` | CLI only |
+
+Windows 产物是 dotnet publish 单文件 (Go DLL 嵌入资源)，~100MB。
 
 构建命令：
 - CLI:  `CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=$VER" -o ocmaster_${VER}_${OS}_${ARCH} ./cmd/cli`
@@ -58,7 +64,8 @@ Go DLL 包含三套平台实现，编译时 `//go:build` 选择：
 - WinUI 3 单文件: `dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true`
 - 一键: `.\build.ps1` (Windows 全流程)
 
-WinUI 3 单文件部署: Go DLL 作为 EmbeddedResource 嵌入 exe，首次运行时提取到 `%LOCALAPPDATA%\OCMaster\`。
+WinUI 3 单文件部署: Go DLL 作为 EmbeddedResource 嵌入，首次运行时提取到 `%LOCALAPPDATA%\OCMaster\`。
+双模式: 双击 → WinUI 3 GUI；`ocmaster.exe --cli scan` → 命令行模式 (AttachConsole)。
 - DLL:  `go build -buildmode=c-shared -o hardware_scanner.dll .`
 - 一键: `bash build.sh` 或 `.\build.ps1`
 

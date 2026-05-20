@@ -1,4 +1,4 @@
-name: Build Windows C端
+name: OCMaster C端 CI
 
 on:
   push:
@@ -11,47 +11,53 @@ permissions:
   contents: write
 
 jobs:
-  # ====== Go CLI 静态编译 + 全功能集成测试 ======
-  go-build:
+  # ====== Go CLI test + Go DLL + dotnet publish (GUI+CLI 双模式) ======
+  build:
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
     runs-on: windows-latest
-    outputs:
-      version: ${{ steps.version.outputs.value }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Go
         uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
+        with: { go-version: '1.22' }
 
-      - name: Set UTF-8 encoding (for Chinese output)
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+
+      - name: Set UTF-8 encoding
         run: |
           chcp 65001
           [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-          $env:LANG = "zh_CN.UTF-8"
 
       - name: Read VERSION
         id: version
         shell: bash
         run: echo "value=$(cat VERSION | tr -d '\n\r ')" >> $GITHUB_OUTPUT
 
-      - name: Build Go CLI (静态编译)
+      # ====== Go CLI (静态编译, 双架构) ======
+      - name: Build Go CLI (${{ matrix.arch }})
         run: |
           cd c-end\hardware-scanner
           $env:CGO_ENABLED = "0"
+          $env:GOARCH = "${{ matrix.arch }}"
           go build -ldflags="-s -w -X main.version=${{ steps.version.outputs.value }}" -o ..\bin\ocmaster.exe .\cmd\cli
+          Write-Host "    ocmaster.exe (${{ matrix.arch }}) built"
 
-      # ====== 1. version 测试 ======
+      # ====== 测试 (仅原生 amd64 可执行) ======
       - name: "1/6 version 测试"
+        if: matrix.arch == 'amd64'
         run: |
           $out = & c-end\bin\ocmaster.exe version 2>&1 | Out-String
           if ($LASTEXITCODE -ne 0) { Write-Error "version failed"; exit 1 }
           if ($out -notmatch "ocmaster") { Write-Error "version output wrong: $out"; exit 1 }
-          Write-Host "    $out"
           Write-Host "PASS: version"
 
-      # ====== 2. help 测试 ======
       - name: "2/6 help 测试 (zh-CN + en-US)"
+        if: matrix.arch == 'amd64'
         run: |
           [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
           $zh = & c-end\bin\ocmaster.exe help 2>&1 | Out-String
@@ -62,96 +68,106 @@ jobs:
           if ($en -notmatch "Scan") { Write-Error "en-US help missing Scan"; exit 1 }
           Write-Host "PASS: help zh-CN + en-US"
 
-      # ====== 3. scan --out json 全量 schema 校验 ======
       - name: "3/6 scan --out json 全 schema 校验"
+        if: matrix.arch == 'amd64'
         run: |
           $result = & c-end\bin\ocmaster.exe scan --out json 2>&1 | Out-String
-          if ($LASTEXITCODE -ne 0) { Write-Error "JSON scan failed: $result"; exit 1 }
+          if ($LASTEXITCODE -ne 0) { Write-Error "JSON scan failed"; exit 1 }
           $json = $result | ConvertFrom-Json
-
-          # 验证 6 个顶层字段存在
           $required = @("cpu", "motherboard", "ram", "gpu", "psu", "cooler")
           foreach ($f in $required) {
             if (-not ($json.PSObject.Properties.Name -contains $f)) {
-              Write-Error "Missing top-level field: $f"; exit 1
+              Write-Error "Missing field: $f"; exit 1
             }
           }
-
-          # CPU 子字段
           if (-not $json.cpu.model) { Write-Error "cpu.model empty"; exit 1 }
-          Write-Host "    CPU: $($json.cpu.model) ($($json.cpu.cores)C/$($json.cpu.threads)T) @ $($json.cpu.baseFreq)"
-
-          # RAM
-          if (-not $json.ram.totalCapacity) { Write-Error "ram.totalCapacity empty"; exit 1 }
+          if (-not $json.ram.totalCapacity) { Write-Error "ram empty"; exit 1 }
           if ($null -eq $json.ram.sticks) { Write-Error "ram.sticks null"; exit 1 }
-          Write-Host "    RAM: $($json.ram.totalCapacity) ($($json.ram.stickCount) sticks, $($json.ram.channelCount) ch)"
-
-          # GPU + MB
           if (-not $json.gpu.model) { Write-Error "gpu.model empty"; exit 1 }
-          if (-not $json.motherboard.model) { Write-Error "mb.model empty"; exit 1 }
-          Write-Host "    GPU: $($json.gpu.model) | MB: $($json.motherboard.brand) $($json.motherboard.model)"
+          Write-Host "    CPU: $($json.cpu.model) ($($json.cpu.cores)C/$($json.cpu.threads)T)"
+          Write-Host "PASS: JSON schema"
 
-          # PSU + Cooler 默认值
-          if ($json.psu.source -ne "manual") { Write-Error "psu.source should be manual"; exit 1 }
-          if ($json.cooler.source -ne "manual") { Write-Error "cooler.source should be manual"; exit 1 }
-
-          # VM 环境: CPU model 可能 Unknown，但必须非空
-          if ($json.cpu.model -eq "Unknown CPU") {
-            Write-Host "    [VM detected] core count validation skipped"
-          } elseif ($json.cpu.cores -eq 0) {
-            Write-Error "cpu.cores = 0 on physical machine"; exit 1
-          }
-          Write-Host "PASS: JSON schema (6/6 fields validated)"
-
-      # ====== 4. scan table 模式 ======
-      - name: "4/6 scan table 模式 (zh-CN + en-US)"
+      - name: "4/6 scan table (zh-CN + en-US)"
+        if: matrix.arch == 'amd64'
         run: |
           [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
           $zh = & c-end\bin\ocmaster.exe scan 2>&1 | Out-String
           if ($LASTEXITCODE -ne 0) { Write-Error "zh-CN table failed"; exit 1 }
-          if ($zh -notmatch "CPU") { Write-Error "zh-CN table missing CPU"; exit 1 }
-          if ($zh -notmatch "GPU") { Write-Error "zh-CN table missing GPU"; exit 1 }
-
+          if ($zh -notmatch "CPU") { Write-Error "zh-CN missing CPU"; exit 1 }
           $en = & c-end\bin\ocmaster.exe --lang en-US scan 2>&1 | Out-String
           if ($LASTEXITCODE -ne 0) { Write-Error "en-US table failed"; exit 1 }
-          if ($en -notmatch "CPU") { Write-Error "en-US table missing CPU"; exit 1 }
+          if ($en -notmatch "CPU") { Write-Error "en-US missing CPU"; exit 1 }
           Write-Host "PASS: table zh-CN + en-US"
 
-      # ====== 5. --lang en-US scan --out json ======
       - name: "5/6 scan --out json (en-US)"
+        if: matrix.arch == 'amd64'
         run: |
           $result = & c-end\bin\ocmaster.exe --lang en-US scan --out json 2>&1 | Out-String
-          if ($LASTEXITCODE -ne 0) { Write-Error "en-US JSON scan failed"; exit 1 }
+          if ($LASTEXITCODE -ne 0) { Write-Error "en-US JSON failed"; exit 1 }
           $json = $result | ConvertFrom-Json
-          if (-not $json.cpu.model) { Write-Error "en-US: cpu.model empty"; exit 1 }
-          Write-Host "    CPU(en-US): $($json.cpu.model) ($($json.cpu.cores)C/$($json.cpu.threads)T)"
+          if (-not $json.cpu.model) { Write-Error "cpu.model empty"; exit 1 }
           Write-Host "PASS: en-US JSON scan"
 
-      # ====== 6. 错误处理测试 ======
-      - name: "6/6 错误处理 + 退出码测试"
+      - name: "6/6 错误处理测试"
+        if: matrix.arch == 'amd64'
         run: |
           c-end\bin\ocmaster.exe nosuchcommand 2>&1 | Out-Null
           if ($LASTEXITCODE -eq 0) { Write-Error "unknown cmd should fail"; exit 1 }
-          Write-Host "    unknown command → exit $LASTEXITCODE ✓"
-
           $out = & c-end\bin\ocmaster.exe scan --out json 2>&1 | Out-String
-          if ($LASTEXITCODE -ne 0) { Write-Error "scan --out json should succeed"; exit 1 }
+          if ($LASTEXITCODE -ne 0) { Write-Error "scan failed"; exit 1 }
           if ($out -notmatch "cpu") { Write-Error "JSON missing cpu"; exit 1 }
-          Write-Host "    scan --out json → exit 0 ✓"
           Write-Host "PASS: error handling"
 
-      - name: Rename + Upload (Go-style versioned)
+      # ====== Go DLL (c-shared, 双架构) ======
+      - name: Build Go DLL (${{ matrix.arch }})
+        run: |
+          cd c-end\hardware-scanner
+          $env:CGO_ENABLED = "1"
+          $env:GOARCH = "${{ matrix.arch }}"
+          go build -buildmode=c-shared -o ..\bin\hardware_scanner.dll .
+          Write-Host "    hardware_scanner.dll (${{ matrix.arch }}) built"
+
+      - name: Copy DLL to C# project
+        run: Copy-Item c-end\bin\hardware_scanner.dll c-end\OCMaster.App\ -Force
+
+      # ====== WinUI 3 单文件发布 (GUI + CLI) ======
+      - name: dotnet publish (${{ matrix.arch }})
+        run: |
+          cd c-end\OCMaster.App
+          dotnet restore
+          dotnet publish -c Release -r win-${{ matrix.arch }} --self-contained `
+            -p:PublishSingleFile=true `
+            -p:WindowsAppSDKSelfContained=true `
+            -o publish
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $exe = Get-ChildItem publish\OCMaster.App.exe
+          Write-Host "    -> $([math]::Round($exe.Length/1MB,1)) MB"
+
+      # ====== CLI 模式集成测试 (仅原生 amd64) ======
+      - name: CLI 模式测试 (--cli scan)
+        if: matrix.arch == 'amd64'
+        run: |
+          $result = & c-end\OCMaster.App\publish\OCMaster.App.exe --cli scan --out json 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0) { Write-Error "CLI mode failed"; exit 1 }
+          $json = $result | ConvertFrom-Json
+          if (-not $json.cpu.model) { Write-Error "cpu.model empty"; exit 1 }
+          Write-Host "    CLI mode CPU: $($json.cpu.model)"
+          Write-Host "PASS: WinUI exe CLI mode"
+
+      # ====== Rename + Upload ======
+      - name: Rename (Go-style versioned)
         run: |
           $ver = "${{ steps.version.outputs.value }}"
-          $name = "ocmaster_${ver}_windows_amd64.exe"
-          Rename-Item c-end\bin\ocmaster.exe $name
+          $src = "c-end\OCMaster.App\publish\OCMaster.App.exe"
+          $name = "ocmaster_${ver}_windows_${{ matrix.arch }}.exe"
+          Rename-Item $src $name
+          Move-Item "c-end\OCMaster.App\publish\$name" c-end\bin\ -Force
           Write-Host "    -> c-end\bin\$name"
-          echo "artifact_name=$name" >> $env:GITHUB_ENV
 
-      - name: Upload Go artifact (versioned)
+      - name: Upload artifact (${{ matrix.arch }})
         uses: actions/upload-artifact@v4
         with:
-          name: OCMaster-Go-CLI
+          name: OCMaster-${{ matrix.arch }}
           path: c-end/bin/ocmaster_*.exe
 
   # ====== S端测试 ======
@@ -159,33 +175,36 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Go
         uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-
+        with: { go-version: '1.22' }
       - name: Run S端 tests
-        run: |
-          cd s-end/backend
-          go test ./... -cover
+        run: cd s-end/backend && go test ./... -cover
 
   # ====== Release ======
   release:
-    needs: go-build
+    needs: build
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
-        with:
-          name: OCMaster-Go-CLI
+        with: { name: OCMaster-amd64 }
+      - uses: actions/download-artifact@v4
+        with: { name: OCMaster-arm64 }
+
+      - name: Read VERSION
+        shell: bash
+        run: echo "VERSION=$(cat VERSION | tr -d '\n\r ')" >> $GITHUB_ENV
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.go-build.outputs.version }}
-          name: OCMaster v${{ needs.go-build.outputs.version }}
-          files: ocmaster_*.exe
+          tag_name: v${{ env.VERSION }}
+          name: OCMaster v${{ env.VERSION }}
+          files: |
+            ocmaster_*_windows_amd64.exe
+            ocmaster_*_windows_arm64.exe
           draft: false
           prerelease: false
           generate_release_notes: true

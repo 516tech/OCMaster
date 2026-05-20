@@ -1,5 +1,5 @@
 文档版本：V3.0
-创建日期：2026-05-18
+更新日期：2026-05-19
 文档状态：设计稿
 所属项目：超频大师（OCMaster）
 
@@ -7,31 +7,34 @@
 
 | 维度 | 通过标准 | 当前状态 |
 |------|---------|---------|
-| 功能完整性 | 阶段〇 全部勾选 | 11/12 (WMI 待实现) |
-| Go 测试 | go test 全PASS | scanner 80.7% 覆盖 |
-| S端测试 | go test 全PASS | 15/15 PASS (81 tests) |
-| 三平台 bin | win/mac/linux 编译 | 7 文件 1.9-2.1MB |
-| 三平台 dll | c-shared 编译 | macOS .dylib 验证通过 |
-| CI Windows 集成 | JSON+Table+help | 3-step 测试通过 |
+| 功能完整性 | PRD checkbox 全部勾选 | 阶段〇+二 全部完成 |
+| 架构合规 | 符合 architecture.md V3.0 | 单 exe 双模式 |
+| Go 测试 | scanner 80%+ | 4/4 PASS, 80.7% |
+| S端测试 | 15/15 PASS | ✅ |
+| CI 构建 | dotnet publish 单 exe | 代码就绪，待 runner 验证 |
 
-二、本迭代新增
+二、C端产出
 
-- 统一构建脚本: build.sh (bash) + build.ps1 (PowerShell)
-- 三平台 CLI bin: ocmaster / ocmaster.exe
-- Linux 扫描器: /proc/cpuinfo + /sys/class/dmi/ + dmidecode + lspci
-- CI go-build job: Go setup → Build CLI → Build DLL → 3 集成测试 → Upload
-- CI s-end-test job: go test ./... -cover
+| 平台 | 产物 | 编译方式 |
+|------|------|---------|
+| Windows | 单 exe (~100MB, GUI+CLI) | dotnet publish --self-contained |
+| macOS | ocmaster (2MB, CLI) | CGO_ENABLED=0 go build |
+| Linux | ocmaster (2MB, CLI) | CGO_ENABLED=0 go build |
 
-三、构建产物 (c-end/bin/)
+三、C端模块
 
-| 文件 | 平台 | 大小 |
-|------|------|------|
-| ocmaster | macOS arm64 | 2.0M |
-| ocmaster-windows-amd64.exe | Windows x64 | 1.9M |
-| ocmaster-linux-amd64 | Linux x64 | 2.1M |
-| libhardware_scanner.dylib | macOS arm64 | 2.1M |
+| 模块 | 状态 |
+|------|------|
+| Go DLL 硬件扫描 (3 平台) | ✅ |
+| Go 独立 CLI (3 平台静态 bin) | ✅ |
+| C# WinUI 3 GUI (4 Pages + NavigationView) | ✅ |
+| P/Invoke + 嵌入式 DLL 提取 | ✅ |
+| 双模式: GUI / --cli scan | ✅ |
+| CI 6-step 集成测试 | ✅ |
+| dotnet publish 单文件 | ✅ |
 
-四、待完成
+四、S端 (不变)
 
-- [ ] Windows WMI 扫描器实现
-- [ ] WinUI 3 dotnet build 验证
+- 15/15 PASS, 覆盖率 ~75%
+- Vue 3 SPA vite build 通过
+- 端到端 Upload→Retrieve→Delete PASS

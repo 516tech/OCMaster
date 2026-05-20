@@ -6,9 +6,9 @@
 
 一、MVP 策略
 
-两层交付：
-- C端先行：WinUI 3 桌面应用 + Go DLL 硬件扫描，仅 Windows 10 1809+
-- S端后继：商家 Web 平台，本地 SQLite 开发 → 生产 MySQL + Docker Compose
+单产物交付：
+- C端：一个 exe，双模式。双击 → WinUI 3 GUI；`--cli scan` → 命令行
+- S端：商家 Web 平台，本地 SQLite 开发 → 生产 MySQL + Docker Compose
 
 S端零 Docker 依赖：`go run ./cmd/server` 直连 SQLite 文件启动。
 
@@ -16,22 +16,20 @@ S端零 Docker 依赖：`go run ./cmd/server` 直连 SQLite 文件启动。
 
 | 角色 | 需求 |
 |------|------|
-| 普通用户 | Windows 桌面应用一键获取硬件信息，本地导出或上传生成分享码 |
-| 超频服务商 | 输入分享码查看硬件，参考数据库生成超频建议 PDF |
+| 普通用户 | 双击 exe 启动 GUI，一键扫描硬件，导出或上传获取分享码 |
+| 进阶用户 | 命令行 `ocmaster --cli scan --out json` 集成自动化 |
+| 超频服务商 | 登录 Web 平台，输入分享码查询硬件，生成超频建议 PDF |
 
-C端流程：启动 WinUI 3 → 一键扫描 → 表格展示 → 手动修正 → 本地导出 / 上传获取分享码。
-S端流程：登录 → 输入分享码 → 查看硬件 + 参考数据 → 填写超频建议 → 生成 PDF。
+C端流程：双击 exe → GUI 一键扫描 → 表格展示 → TXT 导出 / 上传获取分享码。
+CLI 流程：`ocmaster --cli scan [--out json]` → stdout 输出。
 
-三、C端需求（用 C# WinUI 3 + Go DLL）
+三、C端技术方案（单 exe 双模式）
 
-- WinUI 3 桌面应用，Windows 10 1809+ / Windows 11
-- 一键扫描：Go DLL (c-shared) 采集 CPU/主板/内存/显卡/电源/散热
-- Go DLL 三平台源码 (`//go:build`)，编译时选对应实现
-- 本地表格展示 + 手动修正 + TXT 导出
-- 上传：授权提示 → 6 位分享码（7 天有效）→ 一键复制后可删除
-- 设置页：API 地址、语言、自动扫描开关，JSON 文件持久化
-- CLI 模式：`ocmaster.exe scan --output json` 支持 CI 集成测试
-- 全量 JSON 日志记录
+- 一个产物：`ocmaster_0.0.1_windows_amd64.exe`（~100MB 单文件）
+- GUI：WinUI 3 (NavigationView 四页) + Go DLL (嵌入资源，首次提取)
+- CLI：`AttachConsole(-1)` 接管终端，复用 Go DLL 扫描逻辑
+- Windows 10 1809+ / Windows 11，仅 x64
+- Go 扫描器三平台源码 (`//go:build`)，macOS/Linux 用独立 Go bin
 
 四、S端需求（不变）
 
@@ -80,7 +78,8 @@ S端流程：登录 → 输入分享码 → 查看硬件 + 参考数据 → 填�
 - [x] 2.7b MainWindow: NavigationView 四页导航
 - [x] 2.8 TXT 导出 (FileSavePicker)
 - [x] 2.9 CLI 三平台 bin + CI 集成测试 (JSON + Table + version)
-- [x] 2.10 English / 中文 双语支持 (CLI --lang zh-CN/en-US ✅, C# UI 代码就绪)
+- [x] 2.10 双模式合一: 双击→GUI, --cli scan→命令行, 单 exe 产物
+- [x] 2.11 Go DLL 嵌入资源 → NativeLibrary.Load 首次提取
 
 阶段三至六：S端后端 + 前端 + 集成（已完成，不变）
 - [x] 3.1-3.10 S端后端（覆盖率 ~75%）
