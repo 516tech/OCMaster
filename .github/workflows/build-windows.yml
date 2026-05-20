@@ -79,8 +79,8 @@ jobs:
 
       - name: "4/4 error handling"
         run: |
-          $null = & c-end\bin\ocmaster.exe nosuchcommand 2>&1
-          if ($LASTEXITCODE -eq 0) { Write-Error "unknown cmd should fail"; exit 1 }
+          c-end\bin\ocmaster.exe nosuchcommand 2>$null
+          if ($LASTEXITCODE -eq 0) { throw "unknown cmd should fail" }
           Write-Host "PASS: error handling"
 
       # ====== Go DLL (c-shared) ======
