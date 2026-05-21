@@ -86,9 +86,24 @@ jobs:
           dotnet build -c Release -p:Platform=x64 -v normal 2>&1 | Out-String -OutVariable buildOut
           Write-Host $buildOut
           if ($LASTEXITCODE -ne 0) {
-            # 读取 XAML compiler 输出 (obj/x64 目录)
-            $errFile = Get-ChildItem -Path obj -Recurse -Filter output.json -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($errFile) { Write-Host "=== XAML ERRORS ==="; Get-Content $errFile.FullName }
+            Write-Host "=== XAML COMPILER DIAGNOSTICS ==="
+            # 1. 先找 obj 目录下的 output.json (精确路径)
+            $outputJson = "obj\x64\Release\net8.0-windows10.0.19041.0\win-x64\output.json"
+            if (Test-Path $outputJson) {
+              Write-Host "--- output.json (XAML errors) ---"
+              Get-Content $outputJson
+            } else {
+              Write-Host "output.json not found at expected path, searching..."
+              $errFile = Get-ChildItem -Path obj -Recurse -Filter output.json -ErrorAction SilentlyContinue | Select-Object -First 1
+              if ($errFile) { Write-Host "--- output.json (found via search) ---"; Get-Content $errFile.FullName }
+              else { Write-Host "No output.json found anywhere in obj/ — XamlCompiler crashed before writing output" }
+            }
+            # 2. 查看 input.json 了解传给 XamlCompiler 的参数
+            $inputJson = "obj\x64\Release\net8.0-windows10.0.19041.0\win-x64\input.json"
+            if (Test-Path $inputJson) {
+              Write-Host "--- input.json (XAML compiler inputs) ---"
+              Get-Content $inputJson
+            }
             throw "dotnet build failed"
           }
           Write-Host "    XAML compilation OK"
