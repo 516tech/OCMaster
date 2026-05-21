@@ -77,6 +77,11 @@ jobs:
           Write-Host "    DLL built + copied"
 
       # ====== dotnet publish (GUI+CLI 双模式) ======
+      - name: Install .NET Framework 4.7.2 Developer Pack
+        run: |
+          choco install netfx-4.7.2-devpack --no-progress -y
+          Write-Host ".NET Framework 4.7.2 Developer Pack installed"
+
       - name: dotnet build (先验证 XAML)
         run: |
           cd c-end\OCMaster.App
