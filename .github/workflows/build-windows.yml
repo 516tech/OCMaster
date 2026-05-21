@@ -80,12 +80,15 @@ jobs:
       - name: dotnet build (先验证 XAML)
         run: |
           cd c-end\OCMaster.App
+          # 清缓存
+          if (Test-Path bin) { Remove-Item -Recurse -Force bin }
+          if (Test-Path obj) { Remove-Item -Recurse -Force obj }
           dotnet build -c Release -p:Platform=x64 -v normal 2>&1 | Out-String -OutVariable buildOut
           Write-Host $buildOut
           if ($LASTEXITCODE -ne 0) {
-            # 尝试读取 XAML compiler 输出
-            $errFile = Get-ChildItem obj\x64\Release\net8.0-windows10.0.19041.0\win-x64\output.json -ErrorAction SilentlyContinue
-            if ($errFile) { Write-Host "--- XAML compiler output ---"; Get-Content $errFile.FullName }
+            # 读取 XAML compiler 输出 (obj/x64 目录)
+            $errFile = Get-ChildItem -Path obj -Recurse -Filter output.json -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($errFile) { Write-Host "=== XAML ERRORS ==="; Get-Content $errFile.FullName }
             throw "dotnet build failed"
           }
           Write-Host "    XAML compilation OK"
