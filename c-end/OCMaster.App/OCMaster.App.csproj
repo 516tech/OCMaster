@@ -13,6 +13,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <EnableXamlCompiledBindings>false</EnableXamlCompiledBindings>
+    <EnableXamlCompilation>false</EnableXamlCompilation>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
