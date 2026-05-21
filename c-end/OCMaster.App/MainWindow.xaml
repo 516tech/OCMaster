@@ -1,17 +1,18 @@
 <Window x:Class="OCMaster.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:Microsoft.UI.Xaml.Controls"
         Title="超频大师 OCMaster" Height="680" Width="960">
 
-    <NavigationView x:Name="MainNav" IsSettingsVisible="False"
+    <controls:NavigationView x:Name="MainNav" IsSettingsVisible="False"
                     PaneDisplayMode="Top" IsBackButtonVisible="Collapsed">
-        <NavigationView.MenuItems>
-            <NavigationViewItem Icon="Scan"    Content="硬件扫描" Tag="scan" />
-            <NavigationViewItem Icon="Upload"  Content="上传分享" Tag="upload" />
-            <NavigationViewItem Icon="Setting" Content="设置"     Tag="settings" />
-            <NavigationViewItem Icon="Help"    Content="关于"     Tag="about" />
-        </NavigationView.MenuItems>
+        <controls:NavigationView.MenuItems>
+            <controls:NavigationViewItem Icon="Scan"    Content="硬件扫描" Tag="scan" />
+            <controls:NavigationViewItem Icon="Upload"  Content="上传分享" Tag="upload" />
+            <controls:NavigationViewItem Icon="Setting" Content="设置"     Tag="settings" />
+            <controls:NavigationViewItem Icon="Help"    Content="关于"     Tag="about" />
+        </controls:NavigationView.MenuItems>
 
         <Frame x:Name="ContentFrame" Padding="24" />
-    </NavigationView>
+    </controls:NavigationView>
 </Window>
