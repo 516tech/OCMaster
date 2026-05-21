@@ -7,56 +7,52 @@
         <StackPanel Spacing="16">
             <StackPanel HorizontalAlignment="Center" Spacing="8" Margin="0,20,0,0">
                 <Button x:Name="ScanBtn" Content="开始扫描" Click="ScanBtn_Click"
-                        IsEnabled="{x:Bind IsNotScanning, Mode=OneWay}"
                         FontSize="18" Padding="24,14"
                         HorizontalAlignment="Center" />
-                <controls:ProgressRing x:Name="ScanProgress" IsActive="{x:Bind IsScanning, Mode=OneWay}"
+                <controls:ProgressRing x:Name="ScanProgress"
                               HorizontalAlignment="Center" />
-                <TextBlock Text="点击按钮一键扫描您的硬件信息"
-                           Visibility="{x:Bind ShowHint, Mode=OneWay}"
+                <TextBlock x:Name="HintText" Text="点击按钮一键扫描您的硬件信息"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            HorizontalAlignment="Center" FontSize="13" />
             </StackPanel>
 
-            <controls:InfoBar x:Name="ErrorBar" Severity="Error" IsOpen="{x:Bind HasError, Mode=OneWay}"
-                     Title="扫描失败" Message="{x:Bind ErrorMessage, Mode=OneWay}" />
-
-            <controls:InfoBar x:Name="DllWarning" Severity="Warning" IsOpen="{x:Bind DllMissing, Mode=OneWay}"
+            <controls:InfoBar x:Name="ErrorBar" Severity="Error"
+                     Title="扫描失败" />
+            <controls:InfoBar x:Name="DllWarning" Severity="Warning"
                      Title="扫描模块未安装"
                      Message="请确认 hardware_scanner.dll 已编译并放在程序目录下" />
 
-            <StackPanel x:Name="HardwarePanel" Visibility="{x:Bind HasHardware, Mode=OneWay}"
-                        Spacing="4" Margin="0,8,0,0">
+            <StackPanel x:Name="HardwarePanel" Spacing="4" Margin="0,8,0,0">
                 <TextBlock Text="硬件信息" FontSize="18" FontWeight="SemiBold" />
 
                 <controls:Expander Header="CPU 处理器" IsExpanded="True">
                     <StackPanel Spacing="4" Padding="12,8">
-                        <TextBlock><Run Text="型号: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.CPU.Model, Mode=OneWay}"/></TextBlock>
-                        <TextBlock><Run Text="核心/线程: " FontWeight="SemiBold"/><Run Text="{x:Bind CpuCoresText, Mode=OneWay}"/></TextBlock>
-                        <TextBlock><Run Text="基频: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.CPU.BaseFreq, Mode=OneWay}"/></TextBlock>
+                        <TextBlock x:Name="CpuModelText" />
+                        <TextBlock x:Name="CpuCoresText" />
+                        <TextBlock x:Name="CpuFreqText" />
                     </StackPanel>
                 </controls:Expander>
 
                 <controls:Expander Header="主板 Motherboard" IsExpanded="False">
                     <StackPanel Spacing="4" Padding="12,8">
-                        <TextBlock><Run Text="品牌: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.Motherboard.Brand, Mode=OneWay}"/></TextBlock>
-                        <TextBlock><Run Text="型号: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.Motherboard.Model, Mode=OneWay}"/></TextBlock>
-                        <TextBlock><Run Text="BIOS: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.Motherboard.BiosVersion, Mode=OneWay}"/></TextBlock>
+                        <TextBlock x:Name="MbBrandText" />
+                        <TextBlock x:Name="MbModelText" />
+                        <TextBlock x:Name="MbBiosText" />
                     </StackPanel>
                 </controls:Expander>
 
                 <controls:Expander Header="内存 RAM" IsExpanded="False">
                     <StackPanel Spacing="4" Padding="12,8">
-                        <TextBlock><Run Text="总容量: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.RAM.TotalCapacity, Mode=OneWay}"/></TextBlock>
-                        <TextBlock><Run Text="条数: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.RAM.StickCount, Mode=OneWay}"/></TextBlock>
-                        <TextBlock><Run Text="通道: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.RAM.ChannelCount, Mode=OneWay}"/></TextBlock>
+                        <TextBlock x:Name="RamCapacityText" />
+                        <TextBlock x:Name="RamSticksText" />
+                        <TextBlock x:Name="RamChannelsText" />
                     </StackPanel>
                 </controls:Expander>
 
                 <controls:Expander Header="显卡 GPU" IsExpanded="False">
                     <StackPanel Spacing="4" Padding="12,8">
-                        <TextBlock><Run Text="型号: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.GPU.Model, Mode=OneWay}"/></TextBlock>
-                        <TextBlock><Run Text="显存: " FontWeight="SemiBold"/><Run Text="{x:Bind Hardware.GPU.VRAM, Mode=OneWay}"/></TextBlock>
+                        <TextBlock x:Name="GpuModelText" />
+                        <TextBlock x:Name="GpuVRamText" />
                     </StackPanel>
                 </controls:Expander>
 

@@ -2,42 +2,32 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using OCMaster.App.Models;
 using OCMaster.App.Services;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using WinRT.Interop;
+
 namespace OCMaster.App.Pages;
 
-public sealed partial class ScanPage : Page, INotifyPropertyChanged
+public sealed partial class ScanPage : Page
 {
-    private HardwareInfo _hardware = new();
-    private bool _isScanning;
-    private string _errorMessage = "";
-
-    public HardwareInfo Hardware { get => _hardware; set { _hardware = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasHardware)); } }
-    public bool IsScanning { get => _isScanning; set { _isScanning = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotScanning)); OnPropertyChanged(nameof(ShowHint)); } }
-    public bool IsNotScanning => !_isScanning;
-    public bool ShowHint => !_isScanning && !HasHardware;
-    public string ErrorMessage { get => _errorMessage; set { _errorMessage = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasError)); } }
-    public bool HasError => !string.IsNullOrEmpty(_errorMessage);
-    public bool HasHardware => !string.IsNullOrEmpty(Hardware.CPU?.Model);
-    public bool DllMissing => !NativeInterop.IsAvailable;
-    public string CpuCoresText => $"{Hardware.CPU?.Cores ?? 0}C / {Hardware.CPU?.Threads ?? 0}T";
+    private HardwareInfo? _hardware;
 
     public ScanPage()
     {
         this.InitializeComponent();
+        UpdateUI();
     }
 
     private async void ScanBtn_Click(object sender, RoutedEventArgs e)
     {
         if (!NativeInterop.IsAvailable)
         {
-            ErrorMessage = "扫描模块未安装 — 请确认 hardware_scanner.dll 已编译";
+            ErrorBar.Message = "扫描模块未安装 — hardware_scanner.dll 未找到";
+            ErrorBar.IsOpen = true;
             return;
         }
 
-        IsScanning = true;
-        ErrorMessage = "";
+        ScanBtn.IsEnabled = false;
+        ScanProgress.Visibility = Visibility.Visible;
+        ErrorBar.IsOpen = false;
 
         try
         {
@@ -45,33 +35,62 @@ public sealed partial class ScanPage : Page, INotifyPropertyChanged
             {
                 var result = NativeInterop.ScanAllManaged();
                 if (result != null && !string.IsNullOrEmpty(result.CPU?.Model))
-                {
-                    DispatcherQueue.TryEnqueue(() => Hardware = result);
-                }
+                    DispatcherQueue.TryEnqueue(() => _hardware = result);
                 else
-                {
-                    throw new Exception("扫描无结果 — 请确认当前系统支持硬件检测");
-                }
+                    throw new Exception("扫描无结果");
             });
+
+            UpdateUI();
         }
         catch (Exception ex)
         {
-            ErrorMessage = ex.Message;
+            ErrorBar.Message = ex.Message;
+            ErrorBar.IsOpen = true;
         }
         finally
         {
-            IsScanning = false;
+            ScanBtn.IsEnabled = true;
+            ScanProgress.Visibility = Visibility.Collapsed;
         }
+    }
+
+    private void UpdateUI()
+    {
+        var hw = _hardware;
+        bool hasData = hw != null && !string.IsNullOrEmpty(hw.CPU?.Model);
+
+        HintText.Visibility = hasData ? Visibility.Collapsed : Visibility.Visible;
+        HardwarePanel.Visibility = hasData ? Visibility.Visible : Visibility.Collapsed;
+        DllWarning.Visibility = NativeInterop.IsAvailable ? Visibility.Collapsed : Visibility.Visible;
+
+        if (!hasData) return;
+
+        CpuModelText.Text = $"型号: {hw!.CPU.Model}";
+        CpuCoresText.Text = $"核心/线程: {hw.CPU.Cores}C / {hw.CPU.Threads}T";
+        CpuFreqText.Text = $"基频: {hw.CPU.BaseFreq}";
+
+        MbBrandText.Text = $"品牌: {hw.Motherboard.Brand}";
+        MbModelText.Text = $"型号: {hw.Motherboard.Model}";
+        MbBiosText.Text = $"BIOS: {hw.Motherboard.BiosVersion}";
+
+        RamCapacityText.Text = $"总容量: {hw.RAM.TotalCapacity}";
+        RamSticksText.Text = $"条数: {hw.RAM.StickCount}";
+        RamChannelsText.Text = $"通道: {hw.RAM.ChannelCount}";
+
+        GpuModelText.Text = $"型号: {hw.GPU.Model}";
+        GpuVRamText.Text = $"显存: {hw.GPU.VRAM}";
     }
 
     private async void ExportBtn_Click(object sender, RoutedEventArgs e)
     {
-        var h = Hardware;
+        var hw = _hardware;
+        if (hw == null) return;
+
         var txt = string.Join("\n",
-            $"CPU: {h.CPU?.Model} | {CpuCoresText} | {h.CPU?.BaseFreq}",
-            $"Motherboard: {h.Motherboard?.Brand} {h.Motherboard?.Model} | BIOS {h.Motherboard?.BiosVersion}",
-            $"RAM: {h.RAM?.TotalCapacity} | {h.RAM?.StickCount} sticks | {h.RAM?.ChannelCount} channels",
-            $"GPU: {h.GPU?.Model} | {h.GPU?.VRAM}"
+            $"CPU: {hw.CPU.Model} | {hw.CPU.Cores}C/{hw.CPU.Threads}T | {hw.CPU.BaseFreq}",
+            $"Motherboard: {hw.Motherboard.Brand} {hw.Motherboard.Model} | BIOS {hw.Motherboard.BiosVersion}",
+            $"RAM: {hw.RAM.TotalCapacity} | {hw.RAM.StickCount} sticks | {hw.RAM.ChannelCount} channels",
+            $"GPU: {hw.GPU.Model} | {hw.GPU.VRAM}"
         );
 
         var savePicker = new Windows.Storage.Pickers.FileSavePicker
@@ -82,14 +101,10 @@ public sealed partial class ScanPage : Page, INotifyPropertyChanged
         savePicker.FileTypeChoices.Add("Text", new[] { ".txt" });
 
         var hwnd = WindowNative.GetWindowHandle(App.CurrentWindow);
-        Interop.InitializeWithWindow.Initialize(savePicker, hwnd);
+        InitializeWithWindow.Initialize(savePicker, hwnd);
 
         var file = await savePicker.PickSaveFileAsync();
         if (file != null)
             await Windows.Storage.FileIO.WriteTextAsync(file, txt);
     }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-    private void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
