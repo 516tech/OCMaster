@@ -49,17 +49,17 @@ func TestScanCPU_Darwin(t *testing.T) {
 	if runtime.GOOS != "darwin" {
 		t.Skip("darwin only test")
 	}
-	cpu := scanCPU()
-	if cpu.Model == "" {
+	hw := ScanAll()
+	if hw.CPU.Model == "" {
 		t.Error("cpu model empty")
 	}
-	t.Logf("CPU model=%s cores=%d threads=%d freq=%s", cpu.Model, cpu.Cores, cpu.Threads, cpu.BaseFreq)
+	t.Logf("CPU model=%s cores=%d threads=%d freq=%s", hw.CPU.Model, hw.CPU.Cores, hw.CPU.Threads, hw.CPU.BaseFreq)
 }
 
 func TestScanGPU_Darwin(t *testing.T) {
 	if runtime.GOOS != "darwin" {
 		t.Skip("darwin only test")
 	}
-	gpu := scanGPU()
-	t.Logf("GPU model=%s vram=%s", gpu.Model, gpu.VRAM)
+	hw := ScanAll()
+	t.Logf("GPU model=%s vram=%s", hw.GPU.Model, hw.GPU.VRAM)
 }
