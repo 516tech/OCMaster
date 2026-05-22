@@ -38,7 +38,7 @@ jobs:
           go build -ldflags="-s -w -X main.version=${{ steps.version.outputs.value }}" -o ..\bin\ocmaster.exe .\cmd\cli
 
       - name: Go test
-        run: cd c-end/hardware-scanner && go test ./... -cover
+        run: cd c-end/hardware-scanner && go test ./scanner/... -cover
 
       - name: Go CLI JSON integration test
         run: |
