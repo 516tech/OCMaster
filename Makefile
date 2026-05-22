@@ -23,10 +23,10 @@ build-frontend:
 	cd s-end/frontend && npm run build
 
 build-c-end:
-	cd c-end && npm run build
+	cd c-end/electron && npm run build
 
 package-c-end: build-c-end
-	cd c-end && npx electron-builder --win portable --x64
+	cd c-end/electron && npx electron-builder --win portable --publish=never
 
 # ======== 测试 ========
 test: test-backend

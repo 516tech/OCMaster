@@ -1,5 +1,5 @@
 # OCMaster C端 Windows 构建脚本
-# 产出: bin\ 目录下 ocmaster.exe + hardware_scanner.dll
+# 产出: bin\ 目录下 ocmaster_0.0.1_windows_amd64.exe
 param(
     [switch]$Cross = $false  # -Cross 启用跨平台编译
 )
@@ -7,6 +7,7 @@ param(
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ScannerDir = Join-Path $ScriptDir "hardware-scanner"
+$ElectronDir = Join-Path $ScriptDir "electron"
 $OutDir = Join-Path $ScriptDir "bin"
 
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
@@ -24,69 +25,60 @@ try {
     $LdFlags = "-s -w -X main.version=$Version"
     Write-Host "    Version: $Version" -ForegroundColor Gray
 
-    # ---------- Windows CLI (exe) ----------
-    Write-Host "`n==> [1] 构建 Windows CLI (ocmaster.exe)..." -ForegroundColor Yellow
+    # ---------- [1] Go CLI ----------
+    Write-Host "`n==> [1/3] 构建 Go CLI (ocmaster.exe)..." -ForegroundColor Yellow
     $env:CGO_ENABLED = "0"
-    $env:GOOS = "windows"
-    $env:GOARCH = "amd64"
+    go build -ldflags="$LdFlags" -o "$OutDir\ocmaster.exe" .\cmd\cli
+    Write-Host "    -> $OutDir\ocmaster.exe ($((Get-Item "$OutDir\ocmaster.exe").Length / 1KB) KB)" -ForegroundColor Green
+
+    # ---------- [2] 集成测试 ----------
+    Write-Host "`n==> [2/3] 集成测试..." -ForegroundColor Yellow
     $name = "ocmaster_${Version}_windows_amd64.exe"
-    go build -ldflags="$LdFlags" -o "$OutDir\$name" .\cmd\cli
-    Write-Host "    -> $OutDir\$name ($((Get-Item "$OutDir\$name").Length / 1KB) KB)" -ForegroundColor Green
-
-    # ---------- Windows DLL ----------
-    Write-Host "`n==> [2] 构建 Windows DLL (hardware_scanner.dll)..." -ForegroundColor Yellow
-    $env:CGO_ENABLED = "1"
-    go build -buildmode=c-shared -o "$OutDir\hardware_scanner.dll" .
-    Write-Host "    -> $OutDir\hardware_scanner.dll ($((Get-Item "$OutDir\hardware_scanner.dll").Length / 1KB) KB)" -ForegroundColor Green
-
-    # 复制到 C# 项目目录 (供 embed + publish)
-    Copy-Item "$OutDir\hardware_scanner.dll" "$ScriptDir\OCMaster.App\" -Force
-    Write-Host "    -> 复制到 OCMaster.App\ (供嵌入资源)" -ForegroundColor Gray
-
-    # ---------- 集成测试 ----------
-    Write-Host "`n==> [3] 集成测试..." -ForegroundColor Yellow
-    $name = "ocmaster_${Version}_windows_amd64.exe"
-    $result = & "$OutDir\$name" scan --out json 2>&1
+    $testExe = Join-Path $OutDir "ocmaster.exe"
+    $result = & $testExe scan --out json 2>&1
     if ($LASTEXITCODE -eq 0) {
         Write-Host "    CLI scan PASS" -ForegroundColor Green
         $json = $result | ConvertFrom-Json
         Write-Host "    CPU: $($json.cpu.model) ($($json.cpu.cores)C/$($json.cpu.threads)T)" -ForegroundColor Gray
-        Write-Host "    RAM: $($json.ram.totalCapacity)" -ForegroundColor Gray
-        Write-Host "    GPU: $($json.gpu.model)" -ForegroundColor Gray
     } else {
         Write-Host "    CLI scan FAILED" -ForegroundColor Red
         Write-Host "    $result" -ForegroundColor Red
         exit 1
     }
 
-    # ---------- WinUI 3 发布 (单文件 exe) ----------
-    Write-Host "`n==> [4] dotnet publish (单文件 exe)..." -ForegroundColor Yellow
-    Push-Location "$ScriptDir\OCMaster.App"
-    try {
-        dotnet publish -c Release -r win-x64 --self-contained `
-            -p:PublishSingleFile=true `
-            -p:WindowsAppSDKSelfContained=true `
-            -o "$OutDir\publish" 2>&1 | Select-Object -Last 3
-        if ($LASTEXITCODE -eq 0) {
-            $exe = Get-ChildItem "$OutDir\publish\OCMaster.App.exe" -ErrorAction SilentlyContinue
-            if ($exe) {
-                Write-Host "    -> $($exe.FullName) ($($exe.Length / 1MB) MB)" -ForegroundColor Green
+    # ---------- [3] Electron ----------
+    Write-Host "`n==> [3/3] Electron 构建..." -ForegroundColor Yellow
+    if (Test-Path "$ElectronDir\node_modules") {
+        Push-Location $ElectronDir
+        try {
+            npm run build
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "    Electron build PASS" -ForegroundColor Green
             }
-            Write-Host "    WinUI 3 single-file exe published" -ForegroundColor Green
-        } else {
-            Write-Host "    dotnet publish failed (可能未安装 .NET SDK，跳过)" -ForegroundColor Yellow
+            Write-Host "    -> electron-builder --win portable ..." -ForegroundColor Gray
+            npx electron-builder --win portable --publish=never
+            if ($LASTEXITCODE -eq 0) {
+                $exe = Get-ChildItem "$ElectronDir\build\*.exe" | Select-Object -First 1
+                if ($exe) {
+                    $finalName = "ocmaster_${Version}_windows_amd64.exe"
+                    Rename-Item $exe.FullName $finalName
+                    Move-Item (Join-Path $exe.DirectoryName $finalName) "$OutDir\$finalName" -Force
+                    Write-Host "    -> $OutDir\$finalName ($([math]::Round($exe.Length/1MB,1)) MB)" -ForegroundColor Green
+                }
+            }
+        } finally {
+            Pop-Location
         }
-    } finally {
-        Pop-Location
+    } else {
+        Write-Host "    (跳过: Electron 依赖未安装, 先 cd c-end/electron && npm install)" -ForegroundColor Yellow
     }
 
     # ---------- 跨平台 (可选) ----------
     if ($Cross) {
-        Write-Host "`n==> [4] 跨平台编译..." -ForegroundColor Yellow
+        Write-Host "`n==> [*] 跨平台编译..." -ForegroundColor Yellow
         foreach ($target in @(
             @{OS="linux"; Arch="amd64"; Ext=""},
-            @{OS="darwin"; Arch="arm64"; Ext=""},
-            @{OS="darwin"; Arch="amd64"; Ext=""}
+            @{OS="darwin"; Arch="arm64"; Ext=""}
         )) {
             Write-Host "    $($target.OS)/$($target.Arch)..." -NoNewline
             $env:GOOS = $target.OS
@@ -94,15 +86,13 @@ try {
             $env:CGO_ENABLED = "0"
             $name = "ocmaster_${Version}_$($target.OS)_$($target.Arch)$($target.Ext)"
             go build -ldflags="$LdFlags" -o "$OutDir\$name" .\cmd\cli
-            if ($LASTEXITCODE -eq 0) {
-                Write-Host " OK" -ForegroundColor Green
-            }
+            if ($LASTEXITCODE -eq 0) { Write-Host " OK" -ForegroundColor Green }
         }
     }
 
     Write-Host "`n=========================================" -ForegroundColor Cyan
     Write-Host " 构建完成" -ForegroundColor Cyan
-    Get-ChildItem $OutDir | ForEach-Object { Write-Host "   $($_.Name) ($($_.Length / 1KB) KB)" -ForegroundColor Gray }
+    Get-ChildItem $OutDir | ForEach-Object { Write-Host "   $($_.Name) ($([math]::Round($_.Length/1KB,1)) KB)" -ForegroundColor Gray }
     Write-Host "=========================================" -ForegroundColor Cyan
 } finally {
     Pop-Location
