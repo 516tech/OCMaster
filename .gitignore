@@ -9,3 +9,4 @@ ci.log
 *.so
 *.exe
 *.h
+ImHex/
