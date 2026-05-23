@@ -16,20 +16,30 @@ import (
 var version = "dev"
 var logger *log.Logger
 
-func init() {
+func initLog() {
 	logDir := filepath.Join(os.TempDir(), "OCMaster")
 	os.MkdirAll(logDir, 0755)
 	logPath := filepath.Join(logDir, fmt.Sprintf("ocmaster-%s.log", time.Now().Format("20060102-150405")))
 	f, err := os.Create(logPath)
 	if err == nil {
 		logger = log.New(f, "", log.LstdFlags|log.Lshortfile)
-		logger.Println("OCMaster started — " + logPath)
 	} else {
 		logger = log.New(os.Stderr, "OCMaster: ", log.LstdFlags)
 	}
+	logger.Println("=== OCMaster started ===")
+	logger.Println("log: " + logPath)
 }
 
 func main() {
+	initLog()
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Printf("FATAL panic: %v", r)
+			fmt.Fprintf(os.Stderr, "FATAL: %v\nSee log: %s\n", r, os.TempDir()+"/OCMaster/")
+			os.Exit(1)
+		}
+	}()
+
 	if len(os.Args) > 1 {
 		cmd := os.Args[1]
 		switch cmd {
@@ -45,23 +55,33 @@ func main() {
 		}
 	}
 
-	logger.Println("starting GUI mode")
+	logger.Println("starting GUI — " + runtime.GOOS + "/" + runtime.GOARCH)
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	wnd := g.NewMasterWindow("超频大师 OCMaster", 1000, 720, 0)
-	wnd.SetStyle(giuDarkTheme())
+	wnd := g.NewMasterWindow("超频大师 OCMaster", 1100, 780, 0)
+	wnd.SetStyle(ImHexDark())
 	wnd.SetTargetFPS(30)
-	logger.Println("window created, entering main loop")
+
+	// Delayed auto-scan (1s after startup)
+	go func() {
+		time.Sleep(1 * time.Second)
+		if autoScan {
+			logger.Println("auto-scan triggered")
+			doScan()
+		}
+	}()
+
+	logger.Println("entering main loop")
 	wnd.Run(loop)
 }
 
 func printHelp() {
 	fmt.Println("OCMaster")
 	fmt.Println("  ocmaster              GUI")
-	fmt.Println("  ocmaster scan          CLI scan")
-	fmt.Println("  ocmaster scan --out json  JSON")
-	fmt.Println("  ocmaster version       version")
+	fmt.Println("  ocmaster scan          CLI")
+	fmt.Println("  ocmaster scan --out json")
+	fmt.Println("  ocmaster version")
 }
 
 func runCLIScan() {
