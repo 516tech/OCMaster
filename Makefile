@@ -23,10 +23,10 @@ build-frontend:
 	cd s-end/frontend && npm run build
 
 build-c-end:
-	cd c-end/electron && npm run build
+	cd c-end/hardware-scanner && CGO_ENABLED=1 go build -ldflags="-s -w" -o ../bin/ocmaster ./cmd/gui
 
-package-c-end: build-c-end
-	cd c-end/electron && npx electron-builder --win portable --publish=never
+build-c-end-cli:
+	cd c-end/hardware-scanner && CGO_ENABLED=0 go build -ldflags="-s -w" -o ../bin/ocmaster-cli ./cmd/cli
 
 # ======== 测试 ========
 test: test-backend
@@ -48,5 +48,5 @@ run-frontend:
 clean:
 	rm -rf s-end/backend/bin s-end/backend/data
 	rm -rf s-end/frontend/dist
-	rm -rf c-end/dist c-end/dist-electron c-end/release
+	rm -rf c-end/bin c-end/hardware-scanner/bin
 	rm -f .version.env

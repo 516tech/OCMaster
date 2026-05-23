@@ -41,6 +41,9 @@ jobs:
           if (-not $json.cpu.model) { throw "cpu.model empty" }
           Write-Host "CPU: $($json.cpu.model) ($($json.cpu.cores)C/$($json.cpu.threads)T)"
 
+      - name: Install MinGW (CGO)
+        run: choco install mingw --no-progress -y
+
       - name: Build Go GUI (CGO)
         run: |
           cd c-end/hardware-scanner
