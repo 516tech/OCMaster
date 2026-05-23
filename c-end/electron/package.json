@@ -2,7 +2,7 @@
   "name": "ocmaster",
   "version": "0.0.1",
   "description": "超频大师 OCMaster — 硬件扫描工具",
-  "main": "./out/main/index.js",
+  "main": "./out/main/main.js",
   "author": "OCMaster",
   "license": "MIT",
   "scripts": {
