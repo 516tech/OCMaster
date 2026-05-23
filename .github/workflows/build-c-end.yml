@@ -61,13 +61,15 @@ jobs:
       - name: Package Electron (portable exe)
         run: cd c-end/electron && npx electron-builder --win portable --publish=never
 
-      - name: Rename artifact (Go 命名规范)
+      - name: Collect artifact (Go 命名规范)
         run: |
           $ver = "${{ steps.version.outputs.value }}"
           $name = "ocmaster_${ver}_windows_amd64.exe"
-          $exe = Get-ChildItem c-end\electron\build\*.exe | Select-Object -First 1
-          Rename-Item $exe.FullName $name
-          Move-Item (Join-Path $exe.DirectoryName $name) c-end\bin\$name -Force
+          # electron-builder portable outputs to dist/
+          $exe = Get-ChildItem c-end\electron\dist\*.exe | Where-Object { $_.Name -notmatch 'Setup|Installer' } | Select-Object -First 1
+          if (-not $exe) { $exe = Get-ChildItem c-end\electron\dist\*.exe | Select-Object -First 1 }
+          if (-not $exe) { throw "No exe found in dist/" }
+          Move-Item $exe.FullName c-end\bin\$name -Force
           Write-Host "    -> $name"
 
       - name: Upload artifact

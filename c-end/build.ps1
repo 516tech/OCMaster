@@ -58,7 +58,7 @@ try {
             Write-Host "    -> electron-builder --win portable ..." -ForegroundColor Gray
             npx electron-builder --win portable --publish=never
             if ($LASTEXITCODE -eq 0) {
-                $exe = Get-ChildItem "$ElectronDir\build\*.exe" | Select-Object -First 1
+                $exe = Get-ChildItem "$ElectronDir\dist\*.exe" | Where-Object { $_.Name -notmatch 'Setup|Installer' } | Select-Object -First 1
                 if ($exe) {
                     $finalName = "ocmaster_${Version}_windows_amd64.exe"
                     Rename-Item $exe.FullName $finalName
