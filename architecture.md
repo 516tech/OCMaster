@@ -1,115 +1,151 @@
-# OCMaster 架构设计 V4.2
+<h1 align="center">OCMaster Architecture</h1>
 
-文档版本：V4.2 | 更新日期：2026-05-22 | 文档状态：设计稿
+<p align="center">
+    Core (Electron Shell) + Plugins (Go Scanner Backends) + S端 (DDD API)
+    <br>
+    <strong>参考 ImHex 设计模式</strong>
+</p>
 
-## 一、技术选型
-
-| 模块 | 技术 |
-|------|------|
-| C端 GUI | Electron 33 + Vue 3 + TypeScript + Element Plus |
-| C端硬件扫描 | Go CLI (sidecar, stdout JSON) |
-| S端后端 | Golang / chi / GORM v2 / zerolog (DDD 四层) |
-| S端前端 | Vue 3 / Element Plus / Vite / Pinia |
-| 本地数据库 | SQLite (:memory: 测试 / 文件 开发) |
-| 生产数据库 | MySQL 8.0 + Docker Compose |
-
-## 二、C端架构
+## Architecture
 
 ```
-ocmaster_0.0.1_windows_amd64.exe (~70MB)
-├── Electron Main Process
-│   ├── BrowserWindow + contextBridge
-│   ├── scanner.ts: spawn('ocmaster', ['scan', '--out', 'json'])
-│   ├── config.ts: JSON 持久化 (userData)
-│   └── ipc-handlers.ts: IPC 路由
-├── Vue 3 Renderer (4 页面)
-│   ├── ScanPage: 扫描 + 进度 + 取消 + TXT 导出
-│   ├── UploadPage: 上传 + 分享码 + 复制/删除
-│   ├── SettingsPage: API URL + 语言 + 主题 + 自动扫描
-│   └── AboutPage: 版本 + 技术栈
-├── UI 基础设施 (参考 ImHex)
-│   ├── EventBus (Event/Request pub/sub)
-│   ├── Theme (dark/light/system CSS var 热切换)
-│   └── Toast (4s 自动过期 success/error/warning/info)
-└── Go CLI (extraResources/scanner/)
-    └── ocmaster scan --out json → stdout → HardwareInfo
+C端 Electron GUI (~70MB)
+┌──────────────────────────────────────────┐
+│  Vue 3 Renderer  ◄── IPC ──►  Main       │
+│  ┌────────────┐              ┌──────────┐ │
+│  │ ScanPage   │  scan:all    │ scanner  │ │
+│  │ UploadPage │  config:*/   │ config   │ │
+│  │ SettingsPg │  export:txt  │ ipc-mgr  │ │
+│  │ AboutPage  │  window:*    │ window   │ │
+│  └────────────┘              └────┬─────┘ │
+│                                   │spawn  │
+│  Pinia Stores:                    │       │
+│  scan / settings / theme          │       │
+│                                   │       │
+│  Composables:              ┌──────▼──────┐
+│  EventBus / useTheme       │  Go CLI     │
+│  / useToast                │  (sidecar)  │
+│                            └─────────────┘
+└──────────────────────────────────────────┘
+
+S端 (Docker Compose)
+┌─────────┐     ┌──────────────┐     ┌─────────┐
+│  Nginx  │────►│ Go Backend   │────►│  MySQL  │
+│  :80    │     │ chi/GORM     │     │  :3306  │
+│  / → SPA│     │ zerolog/Wire │     │         │
+└─────────┘     └──────────────┘     └─────────┘
+                      │
+              ┌───────▼───────┐
+              │  Vue 3 SPA    │
+              │  Element Plus │
+              │  Vite / Pinia │
+              └───────────────┘
 ```
 
-## 三、目录结构
+## File Tree
 
 ```
 OCMaster/
 ├── c-end/
-│   ├── electron/                    # Electron + Vue 3
-│   │   ├── package.json
-│   │   ├── electron-builder.yml     # Windows portable + NSIS
-│   │   ├── electron.vite.config.ts
+│   ├── electron/                         # Electron Shell (Core)
 │   │   ├── electron/
-│   │   │   ├── main.ts              # BrowserWindow + 窗口状态持久化
-│   │   │   ├── preload.ts           # contextBridge API
-│   │   │   ├── scanner.ts           # Go sidecar spawn
-│   │   │   ├── config.ts            # 配置读写 (JSON)
-│   │   │   └── ipc-handlers.ts      # IPC + last-tab 持久化
-│   │   └── src/                     # Vue 3 渲染进程
-│   │       ├── App.vue              # 导航 + 主题切换
-│   │       ├── views/               # 4 个页面
-│   │       ├── stores/              # Pinia (scan, settings, theme)
-│   │       ├── composables/         # useEventBus, useTheme, useToast
-│   │       ├── api/client.ts        # HTTP 客户端
-│   │       ├── types/               # TypeScript 类型
-│   │       └── router/index.ts      # Vue Router
-│   ├── hardware-scanner/            # Go 扫描器
-│   │   ├── cmd/cli/main.go          # CLI 入口 (sidecar)
-│   │   ├── scanner/                 # 三平台实现 (WMI/sysfs/IOKit)
-│   │   └── go.mod / go.sum
-│   ├── bin/                         # 构建产物 (gitignore)
+│   │   │   ├── main.ts                   # BrowserWindow + 窗口状态持久化
+│   │   │   ├── preload.ts                # contextBridge API 暴露
+│   │   │   ├── scanner.ts                # spawn Go CLI → stdout JSON
+│   │   │   ├── config.ts                 # userData/config.json 读写
+│   │   │   └── ipc-handlers.ts           # ipcMain.handle 路由注册
+│   │   ├── src/                          # Vue 3 Renderer
+│   │   │   ├── App.vue                   # 导航 + 主题切换按钮
+│   │   │   ├── views/                    # 4 页面组件
+│   │   │   ├── stores/                   # Pinia (scan/settings/theme)
+│   │   │   ├── composables/              # useEventBus/useTheme/useToast
+│   │   │   ├── api/client.ts             # Axios HTTP 客户端
+│   │   │   ├── types/                    # HardwareInfo 类型 + electron.d.ts
+│   │   │   └── router/                   # Vue Router (Hash 模式)
+│   │   ├── electron-builder.yml          # Win/Mac/Linux 打包配置
+│   │   ├── electron.vite.config.ts       # Main/Preload/Renderer 构建
+│   │   └── package.json
+│   ├── hardware-scanner/                 # Go Scanner (Plugins)
+│   │   ├── cmd/cli/main.go               # CLI 入口 (sidecar + 独立 CLI)
+│   │   ├── scanner/
+│   │   │   ├── types.go                  # HardwareInfo JSON struct
+│   │   │   ├── scanner_darwin.go         # macOS: sysctl + system_profiler
+│   │   │   ├── scanner_linux.go          # Linux: /proc + dmidecode + lspci
+│   │   │   ├── scanner_windows.go        # Windows: WMI (wmic)
+│   │   │   └── scanner_test.go           # 集成测试 (80.7% 覆盖)
+│   │   └── go.mod
+│   ├── bin/                              # 构建产物 (gitignore)
 │   ├── build.sh / build.ps1
 ├── s-end/
-│   ├── backend/                     # Go DDD 四层
-│   └── frontend/                    # Vue 3 SPA
-├── .github/workflows/
-│   └── build-c-end.yml              # Windows build → Release
-├── VERSION
-└── docker-compose.yml
+│   ├── backend/                          # Go DDD API
+│   │   ├── domain/                       # Entity + Repository 接口
+│   │   ├── application/                  # Service 用例编排
+│   │   ├── infrastructure/               # GORM + JWT + Chromedp PDF
+│   │   └── interfaces/http/              # chi Handlers + Middleware
+│   ├── frontend/                         # Vue 3 SPA
+│   │   └── src/views/                    # 8 商家页面
+├── .github/workflows/build-c-end.yml     # CI: Windows → Release
+├── VERSION                               # 0.0.1
+└── docker-compose.yml                    # MySQL + Backend + Nginx
 ```
 
-## 四、数据流
+## IPC & Data Flow
+
+Renderer (Vue) ↔ Preload (contextBridge) ↔ Main (ipcMain)
+
+| Channel | Direction | Returns |
+|---------|-----------|---------|
+| `scan:all` | invoke | `ScanResult { success, data?, error? }` |
+| `config:load` | invoke | `AppConfig` JSON |
+| `config:save` | invoke | `{ ok: true }` |
+| `export:txt` | invoke | `ExportResult` |
+| `app:version` | invoke | `string` |
+| `window:*` | invoke | tab / state persistence |
+
+Sidecar: `spawn('ocmaster', ['scan', '--out', 'json'])` → stdout `HardwareInfo` JSON → exit 0.
 
 ```
-用户点击「开始扫描」
-  → Vue ScanPage → window.electronAPI.scanAll()
-  → IPC 'scan:all' → scanner.ts → spawn('ocmaster', ['scan', '--out', 'json'])
-  → stdout JSON → HardwareInfo → Pinia store
-  → events.scanCompleted.post() → Toast 通知
+Scan Flow:
+  User Click → ScanPage.scan() → AbortController
+    → ipcRenderer.invoke('scan:all') → scanner.ts
+    → spawn('ocmaster', ['scan', '--out', 'json'])
+    → stdout JSON → HardwareInfo → Pinia store
+    → events.scanCompleted.post() → Toast
 
-上传分享码:
-  → UploadPage → scanAll() → JSON → api/client.uploadHardware()
-  → POST /api/v1/hardware/upload → shareCode → 复制/删除
+Upload Flow:
+  UploadPage → scanAll() → JSON → api/client.uploadHardware()
+    → POST /api/v1/hardware/upload → shareCode → 复制/删除
+
+Export Flow:
+  ScanPage → window.electronAPI.exportTxt(content)
+    → dialog.showSaveDialog → writeFileSync → Toast
 ```
 
-## 五、CI + 产物
+## CI Pipeline
 
 ```
-build (windows-latest)
-  ├── Go CLI 静态编译 + JSON 集成测试
+Push main → build (windows-latest)
+  ├── Setup Go 1.22 + Node 20
+  ├── Build Go CLI (CGO_ENABLED=0) → c-end/bin/ocmaster.exe
+  ├── go test ./scanner/... -cover
+  ├── CLI JSON integration test (scan --out json → validate fields)
+  ├── Sync VERSION → package.json
   ├── npm ci → electron-vite build → electron-builder --win portable
-  └── ocmaster_0.0.1_windows_amd64.exe → artifact
+  └── Rename → ocmaster_0.0.1_windows_amd64.exe → Upload artifact
 
-release (non-PR)
-  └── GitHub Release (tag: v0.0.1)
+Release (non-PR, needs build + s-end-test)
+  └── Download artifact → softprops/action-gh-release@v2 (tag: v0.0.1)
 ```
 
-## 六、UI 架构 (ImHex 模式)
+## Design Decisions
 
-| ImHex 模式 | Vue 3 实现 | 文件 |
-|-----------|-----------|------|
-| EventManager | Typed EventBus (Event/Request 分离) | `composables/useEventBus.ts` |
-| ThemeManager | CSS Variables + Pinia dark/light/system | `composables/useTheme.ts`, `stores/theme.ts` |
-| Toast/Banner | ElNotification 4s 过期 | `composables/useToast.ts` |
-| TaskManager | AbortController + progress 0-100 | `stores/scan.ts` |
-| LayoutManager | window-state.json + last-tab.json | `electron/main.ts`, `ipc-handlers.ts` |
-
-## 七、S端 (不变)
-
-DDD 四层: domain → application → infrastructure → interfaces/http
-Go/chi/GORM/Zerolog | Vue 3 SPA | Docker Compose (MySQL + backend + Nginx)
+| 决策 | 选择 | 原因 |
+|------|------|------|
+| UI 框架 | Electron + Vue 3 | 跨平台, 无 XAML 编译问题, HMR 开发体验 |
+| Go 集成 | Child Process (sidecar) | Go CLI 已跨平台, 进程隔离, 独立可测试 |
+| 状态管理 | Pinia | 官方推荐, Composition API 风格 |
+| UI 组件库 | Element Plus | 完整中文支持, dark mode, 对标 WinUI 控件 |
+| 主题 | CSS Variables + Pinia | 热切换, 参考 ImHex ThemeManager |
+| 事件通信 | Typed EventBus | Event/Request 分离, 参考 ImHex EventManager |
+| 打包 | electron-builder (portable) | 单文件 exe, 无安装器依赖 |
+| S端数据库 | SQLite → MySQL | 零配置开发, Docker Compose 生产 |

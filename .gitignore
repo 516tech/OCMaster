@@ -3,7 +3,7 @@ bin/
 .DS_Store
 *.db
 *.out
-ci.log
+*.log
 *.dylib
 *.dll
 *.so
