@@ -19,8 +19,18 @@
 | 测试 | 命令 | 结果 |
 |------|------|------|
 | Go 单元测试 | `go test ./scanner/... -cover` | 80.7% PASS |
-| Electron 编译 | `npx electron-vite build` | 6.7KB + 0.9KB + 9 chunks PASS |
-| 文档行数检查 | `wc -l *.md` | all ≤200 |
+| Vue 单元测试 | `npm test` (vitest) | 25/25 PASS (5 suites) |
+| Electron 编译 | `npx electron-vite build` | PASS (6.7K+0.9K+9 chunks) |
+
+### Test Coverage Detail
+
+| Suite | Tests | Coverage |
+|-------|-------|----------|
+| stores/scan.test.ts | 7 | scan, cancel, reset, progress, events, error |
+| stores/settings.test.ts | 3 | load defaults, load partial, save |
+| composables/useEventBus.test.ts | 7 | subscribe, post, unsubscribe, payload, Event vs Request |
+| composables/useTheme.test.ts | 3 | load preference, default, persist |
+| composables/useToast.test.ts | 5 | success/error/warning/info + duration/position |
 
 ## Bugs
 
