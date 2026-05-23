@@ -3,14 +3,31 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
+	"path/filepath"
 	"runtime"
+	"time"
 
 	g "github.com/AllenDang/giu"
 	"github.com/ocmaster/hardware-scanner/scanner"
 )
 
 var version = "dev"
+var logger *log.Logger
+
+func init() {
+	logDir := filepath.Join(os.TempDir(), "OCMaster")
+	os.MkdirAll(logDir, 0755)
+	logPath := filepath.Join(logDir, fmt.Sprintf("ocmaster-%s.log", time.Now().Format("20060102-150405")))
+	f, err := os.Create(logPath)
+	if err == nil {
+		logger = log.New(f, "", log.LstdFlags|log.Lshortfile)
+		logger.Println("OCMaster started — " + logPath)
+	} else {
+		logger = log.New(os.Stderr, "OCMaster: ", log.LstdFlags)
+	}
+}
 
 func main() {
 	if len(os.Args) > 1 {
@@ -28,21 +45,23 @@ func main() {
 		}
 	}
 
+	logger.Println("starting GUI mode")
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
 	wnd := g.NewMasterWindow("超频大师 OCMaster", 1000, 720, 0)
 	wnd.SetStyle(giuDarkTheme())
 	wnd.SetTargetFPS(30)
+	logger.Println("window created, entering main loop")
 	wnd.Run(loop)
 }
 
 func printHelp() {
-	fmt.Println("OCMaster — 超频大师")
-	fmt.Println("  ocmaster              启动 GUI")
-	fmt.Println("  ocmaster scan          命令行扫描")
-	fmt.Println("  ocmaster scan --out json  JSON 输出")
-	fmt.Println("  ocmaster version       版本信息")
+	fmt.Println("OCMaster")
+	fmt.Println("  ocmaster              GUI")
+	fmt.Println("  ocmaster scan          CLI scan")
+	fmt.Println("  ocmaster scan --out json  JSON")
+	fmt.Println("  ocmaster version       version")
 }
 
 func runCLIScan() {

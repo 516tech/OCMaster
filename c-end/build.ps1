@@ -43,7 +43,7 @@ try {
     # [2] Go GUI (CGO + OpenGL)
     Write-Host "`n==> [2/2] Go GUI (CGO)..." -ForegroundColor Yellow
     $env:CGO_ENABLED = "1"
-    go build -ldflags="$LdFlags" -o "$OutDir\ocmaster-gui.exe" .\cmd\gui
+    go build -ldflags="-H windowsgui $LdFlags" -o "$OutDir\ocmaster-gui.exe" .\cmd\gui
     if ($LASTEXITCODE -eq 0) {
         $name = "ocmaster_${Version}_windows_amd64.exe"
         Copy-Item "$OutDir\ocmaster-gui.exe" "$OutDir\$name"

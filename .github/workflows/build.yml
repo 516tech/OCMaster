@@ -48,7 +48,7 @@ jobs:
         run: |
           cd c-end/hardware-scanner
           $env:CGO_ENABLED = "1"
-          go build -ldflags="-s -w -X main.version=${{ steps.version.outputs.value }}" -o ..\bin\ocmaster-gui.exe .\cmd\gui
+          go build -ldflags="-s -w -H windowsgui -X main.version=${{ steps.version.outputs.value }}" -o ..\bin\ocmaster-gui.exe .\cmd\gui
 
       - name: Rename + Upload artifact
         run: |
