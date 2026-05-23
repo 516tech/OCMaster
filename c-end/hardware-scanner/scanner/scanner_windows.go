@@ -2,32 +2,63 @@ package scanner
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
+var scanLog *log.Logger
+
+func init() {
+	logDir := filepath.Join(os.TempDir(), "OCMaster")
+	os.MkdirAll(logDir, 0755)
+	logPath := filepath.Join(logDir, fmt.Sprintf("ocmaster-scan-%s.log", time.Now().Format("20060102-150405")))
+	f, err := os.Create(logPath)
+	if err == nil {
+		scanLog = log.New(f, "", log.LstdFlags)
+	} else {
+		scanLog = log.New(os.Stderr, "SCAN: ", log.LstdFlags)
+	}
+}
+
 func ScanAll() HardwareInfo {
+	scanLog.Println("=== ScanAll: START ===")
 	hw := HardwareInfo{}
+	scanLog.Println("ScanAll: CPU...")
 	hw.CPU = scanCPUWindows()
+	scanLog.Printf("ScanAll: CPU done — model=%s cores=%d", hw.CPU.Model, hw.CPU.Cores)
+	scanLog.Println("ScanAll: Motherboard...")
 	hw.Motherboard = scanMotherboardWindows()
+	scanLog.Printf("ScanAll: MB done — brand=%s model=%s", hw.Motherboard.Brand, hw.Motherboard.Model)
+	scanLog.Println("ScanAll: RAM...")
 	hw.RAM = scanRAMWindows()
+	scanLog.Printf("ScanAll: RAM done — total=%s sticks=%d", hw.RAM.TotalCapacity, hw.RAM.StickCount)
+	scanLog.Println("ScanAll: GPU...")
 	hw.GPU = scanGPUWindows()
+	scanLog.Printf("ScanAll: GPU done — model=%s vram=%s", hw.GPU.Model, hw.GPU.VRAM)
 	hw.PSU = PsuInfo{RatedWattage: "", Source: "manual"}
 	hw.Cooler = CoolerInfo{Type: "air", Source: "manual"}
+	scanLog.Println("=== ScanAll: DONE ===")
 	return hw
 }
 
 // wmic 执行 WMI 查询，返回 CSV 输出行（跳过表头）
 func wmicQuery(class string, props ...string) []string {
+	scanLog.Printf("wmic: %s get %s", class, strings.Join(props, ","))
 	args := append([]string{"/c", "wmic", class, "get", strings.Join(props, ","), "/format:csv"}, "")
 	cmd := exec.Command("cmd", args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	out, err := cmd.Output()
 	if err != nil {
+		scanLog.Printf("wmic: %s FAILED — %v", class, err)
 		return nil
 	}
+	scanLog.Printf("wmic: %s OK — %d bytes", class, len(out))
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	// 过滤空行和表头（Node,prop1,prop2,...）
 	var result []string

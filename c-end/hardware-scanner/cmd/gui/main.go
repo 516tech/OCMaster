@@ -17,32 +17,38 @@ var version = "dev"
 var logger *log.Logger
 
 func initLog() {
-	logDir := filepath.Join(os.TempDir(), "OCMaster")
+	var logDir string
+	if runtime.GOOS == "windows" {
+		home := os.Getenv("USERPROFILE")
+		logDir = filepath.Join(home, "OCMaster", "logs")
+	} else {
+		logDir = filepath.Join(os.TempDir(), "OCMaster")
+	}
 	os.MkdirAll(logDir, 0755)
 	logPath := filepath.Join(logDir, fmt.Sprintf("ocmaster-%s.log", time.Now().Format("20060102-150405")))
 	f, err := os.Create(logPath)
 	if err == nil {
 		logger = log.New(f, "", log.LstdFlags|log.Lshortfile)
+		fmt.Printf("Log: %s\n", logPath)
 	} else {
 		logger = log.New(os.Stderr, "OCMaster: ", log.LstdFlags)
+		fmt.Fprintf(os.Stderr, "Cannot create log: %v\n", err)
 	}
-	logger.Println("=== OCMaster started ===")
-	logger.Println("log: " + logPath)
+	logger.Printf("=== OCMaster v%s === %s/%s ===", version, runtime.GOOS, runtime.GOARCH)
+	logger.Printf("log file: %s", logPath)
 }
 
 func main() {
 	initLog()
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Printf("FATAL panic: %v", r)
-			fmt.Fprintf(os.Stderr, "FATAL: %v\nSee log: %s\n", r, os.TempDir()+"/OCMaster/")
-			os.Exit(1)
+			logger.Printf("FATAL main: %v", r)
+			fmt.Fprintf(os.Stderr, "FATAL: %v\nLog: %s\n", r, logDir())
 		}
 	}()
 
 	if len(os.Args) > 1 {
-		cmd := os.Args[1]
-		switch cmd {
+		switch os.Args[1] {
 		case "scan":
 			runCLIScan()
 			return
@@ -50,38 +56,27 @@ func main() {
 			fmt.Printf("ocmaster version %s\n", version)
 			return
 		case "help", "--help", "-h":
-			printHelp()
+			fmt.Println("OCMaster  GUI | ocmaster scan  CLI | ocmaster scan --out json")
 			return
 		}
 	}
 
-	logger.Println("starting GUI — " + runtime.GOOS + "/" + runtime.GOARCH)
+	logger.Println("GUI mode starting")
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
 	wnd := g.NewMasterWindow("超频大师 OCMaster", 1100, 780, 0)
 	wnd.SetStyle(ImHexDark())
 	wnd.SetTargetFPS(30)
-
-	// Delayed auto-scan (1s after startup)
-	go func() {
-		time.Sleep(1 * time.Second)
-		if autoScan {
-			logger.Println("auto-scan triggered")
-			doScan()
-		}
-	}()
-
-	logger.Println("entering main loop")
+	logger.Println("window created, entering loop")
 	wnd.Run(loop)
 }
 
-func printHelp() {
-	fmt.Println("OCMaster")
-	fmt.Println("  ocmaster              GUI")
-	fmt.Println("  ocmaster scan          CLI")
-	fmt.Println("  ocmaster scan --out json")
-	fmt.Println("  ocmaster version")
+func logDir() string {
+	if runtime.GOOS == "windows" {
+		return filepath.Join(os.Getenv("USERPROFILE"), "OCMaster", "logs")
+	}
+	return filepath.Join(os.TempDir(), "OCMaster")
 }
 
 func runCLIScan() {
