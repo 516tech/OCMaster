@@ -1,151 +1,90 @@
 <h1 align="center">OCMaster Architecture</h1>
 
 <p align="center">
-    Core (Electron Shell) + Plugins (Go Scanner Backends) + S端 (DDD API)
+    Go + giu (Dear ImGui) — 跟 ImHex 相同的立即模式 GUI
     <br>
-    <strong>参考 ImHex 设计模式</strong>
+    <strong>单二进制, 双模式 (GUI + CLI), ~13MB</strong>
 </p>
 
 ## Architecture
 
 ```
-C端 Electron GUI (~70MB)
-┌──────────────────────────────────────────┐
-│  Vue 3 Renderer  ◄── IPC ──►  Main       │
-│  ┌────────────┐              ┌──────────┐ │
-│  │ ScanPage   │  scan:all    │ scanner  │ │
-│  │ UploadPage │  config:*/   │ config   │ │
-│  │ SettingsPg │  export:txt  │ ipc-mgr  │ │
-│  │ AboutPage  │  window:*    │ window   │ │
-│  └────────────┘              └────┬─────┘ │
-│                                   │spawn  │
-│  Pinia Stores:                    │       │
-│  scan / settings / theme          │       │
-│                                   │       │
-│  Composables:              ┌──────▼──────┐
-│  EventBus / useTheme       │  Go CLI     │
-│  / useToast                │  (sidecar)  │
-│                            └─────────────┘
-└──────────────────────────────────────────┘
+ocmaster.exe (~13MB, Go + giu + CGO)
+┌─────────────────────────────────────────┐
+│  giu (Dear ImGui Go binding)            │
+│  ┌───────────────────────────────────┐  │
+│  │  TabBar: 扫描 | 上传 | 设置 | 关于  │  │
+│  │  DefaultTheme() dark mode         │  │
+│  │  scanner.ScanAll() 直接调用       │  │
+│  │  goroutine + shared state         │  │
+│  └───────────────────────────────────┘  │
+│  OpenGL 3.2+ | GLFW backend            │
+├─────────────────────────────────────────┤
+│  双模式:                                 │
+│    双击 → GUI                            │
+│    ocmaster scan → CLI                   │
+└─────────────────────────────────────────┘
 
-S端 (Docker Compose)
-┌─────────┐     ┌──────────────┐     ┌─────────┐
-│  Nginx  │────►│ Go Backend   │────►│  MySQL  │
-│  :80    │     │ chi/GORM     │     │  :3306  │
-│  / → SPA│     │ zerolog/Wire │     │         │
-└─────────┘     └──────────────┘     └─────────┘
-                      │
-              ┌───────▼───────┐
-              │  Vue 3 SPA    │
-              │  Element Plus │
-              │  Vite / Pinia │
-              └───────────────┘
+S端 (不变)
+┌─────────┐    ┌──────────────┐    ┌─────────┐
+│  Nginx  │───►│ Go Backend   │───►│  MySQL  │
+│  :80    │    │ chi/GORM     │    │  :3306  │
+└─────────┘    └──────────────┘    └─────────┘
 ```
 
 ## File Tree
 
 ```
-OCMaster/
-├── c-end/
-│   ├── electron/                         # Electron Shell (Core)
-│   │   ├── electron/
-│   │   │   ├── main.ts                   # BrowserWindow + 窗口状态持久化
-│   │   │   ├── preload.ts                # contextBridge API 暴露
-│   │   │   ├── scanner.ts                # spawn Go CLI → stdout JSON
-│   │   │   ├── config.ts                 # userData/config.json 读写
-│   │   │   └── ipc-handlers.ts           # ipcMain.handle 路由注册
-│   │   ├── src/                          # Vue 3 Renderer
-│   │   │   ├── App.vue                   # 导航 + 主题切换按钮
-│   │   │   ├── views/                    # 4 页面组件
-│   │   │   ├── stores/                   # Pinia (scan/settings/theme)
-│   │   │   ├── composables/              # useEventBus/useTheme/useToast
-│   │   │   ├── api/client.ts             # Axios HTTP 客户端
-│   │   │   ├── types/                    # HardwareInfo 类型 + electron.d.ts
-│   │   │   └── router/                   # Vue Router (Hash 模式)
-│   │   ├── electron-builder.yml          # Win/Mac/Linux 打包配置
-│   │   ├── electron.vite.config.ts       # Main/Preload/Renderer 构建
-│   │   └── package.json
-│   ├── hardware-scanner/                 # Go Scanner (Plugins)
-│   │   ├── cmd/cli/main.go               # CLI 入口 (sidecar + 独立 CLI)
-│   │   ├── scanner/
-│   │   │   ├── types.go                  # HardwareInfo JSON struct
-│   │   │   ├── scanner_darwin.go         # macOS: sysctl + system_profiler
-│   │   │   ├── scanner_linux.go          # Linux: /proc + dmidecode + lspci
-│   │   │   ├── scanner_windows.go        # Windows: WMI (wmic)
-│   │   │   └── scanner_test.go           # 集成测试 (80.7% 覆盖)
-│   │   └── go.mod
-│   ├── bin/                              # 构建产物 (gitignore)
-│   ├── build.sh / build.ps1
-├── s-end/
-│   ├── backend/                          # Go DDD API
-│   │   ├── domain/                       # Entity + Repository 接口
-│   │   ├── application/                  # Service 用例编排
-│   │   ├── infrastructure/               # GORM + JWT + Chromedp PDF
-│   │   └── interfaces/http/              # chi Handlers + Middleware
-│   ├── frontend/                         # Vue 3 SPA
-│   │   └── src/views/                    # 8 商家页面
-├── .github/workflows/build-c-end.yml     # CI: Windows → Release
-├── VERSION                               # 0.0.1
-└── docker-compose.yml                    # MySQL + Backend + Nginx
+c-end/hardware-scanner/
+├── cmd/
+│   ├── cli/main.go          # CLI 入口 (CGO_ENABLED=0, ~2MB 静态)
+│   └── gui/                 # GUI 入口 (CGO, ~13MB)
+│       ├── main.go           # 双模式 + 主窗口 + loop
+│       ├── pages.go           # 4 Tab 页面布局
+│       └── theme.go           # 暗色主题
+├── scanner/                  # 三平台扫描实现
+│   ├── types.go              # HardwareInfo struct
+│   ├── scanner_darwin.go     # macOS: sysctl + system_profiler
+│   ├── scanner_linux.go      # Linux: /proc + dmidecode + lspci
+│   ├── scanner_windows.go    # Windows: WMI (wmic)
+│   └── scanner_test.go       # 80.7% coverage
+├── go.mod / go.sum
+├── bin/                      # 构建产物 (gitignore)
+├── build.sh / build.ps1
+├── .github/workflows/
+│   └── build.yml             # CI: Go CLI + GUI + test → Release
+└── VERSION
 ```
 
-## IPC & Data Flow
-
-Renderer (Vue) ↔ Preload (contextBridge) ↔ Main (ipcMain)
-
-| Channel | Direction | Returns |
-|---------|-----------|---------|
-| `scan:all` | invoke | `ScanResult { success, data?, error? }` |
-| `config:load` | invoke | `AppConfig` JSON |
-| `config:save` | invoke | `{ ok: true }` |
-| `export:txt` | invoke | `ExportResult` |
-| `app:version` | invoke | `string` |
-| `window:*` | invoke | tab / state persistence |
-
-Sidecar: `spawn('ocmaster', ['scan', '--out', 'json'])` → stdout `HardwareInfo` JSON → exit 0.
+## Data Flow
 
 ```
-Scan Flow:
-  User Click → ScanPage.scan() → AbortController
-    → ipcRenderer.invoke('scan:all') → scanner.ts
-    → spawn('ocmaster', ['scan', '--out', 'json'])
-    → stdout JSON → HardwareInfo → Pinia store
-    → events.scanCompleted.post() → Toast
+GUI: User Click → goroutine → scanner.ScanAll()
+       → shared state → giu loop picks up → Table display
+       → exportTXT → os.WriteFile
 
-Upload Flow:
-  UploadPage → scanAll() → JSON → api/client.uploadHardware()
-    → POST /api/v1/hardware/upload → shareCode → 复制/删除
-
-Export Flow:
-  ScanPage → window.electronAPI.exportTxt(content)
-    → dialog.showSaveDialog → writeFileSync → Toast
+CLI: ocmaster scan --out json
+       → scanner.ScanAll() → json.Encode(os.Stdout)
 ```
 
 ## CI Pipeline
 
 ```
-Push main → build (windows-latest)
-  ├── Setup Go 1.22 + Node 20
-  ├── Build Go CLI (CGO_ENABLED=0) → c-end/bin/ocmaster.exe
-  ├── go test ./scanner/... -cover
-  ├── CLI JSON integration test (scan --out json → validate fields)
-  ├── Sync VERSION → package.json
-  ├── npm ci → electron-vite build → electron-builder --win portable
-  └── Rename → ocmaster_0.0.1_windows_amd64.exe → Upload artifact
+build (windows-latest)
+  ├── Go CLI 静态编译 + JSON 集成测试
+  ├── Go GUI CGO 编译 (MinGW)
+  └── ocmaster_0.0.1_windows_amd64.exe → artifact
 
-Release (non-PR, needs build + s-end-test)
-  └── Download artifact → softprops/action-gh-release@v2 (tag: v0.0.1)
+release (non-PR, needs build + s-end-test)
+  └── GitHub Release (tag: v0.0.1)
 ```
 
 ## Design Decisions
 
 | 决策 | 选择 | 原因 |
 |------|------|------|
-| UI 框架 | Electron + Vue 3 | 跨平台, 无 XAML 编译问题, HMR 开发体验 |
-| Go 集成 | Child Process (sidecar) | Go CLI 已跨平台, 进程隔离, 独立可测试 |
-| 状态管理 | Pinia | 官方推荐, Composition API 风格 |
-| UI 组件库 | Element Plus | 完整中文支持, dark mode, 对标 WinUI 控件 |
-| 主题 | CSS Variables + Pinia | 热切换, 参考 ImHex ThemeManager |
-| 事件通信 | Typed EventBus | Event/Request 分离, 参考 ImHex EventManager |
-| 打包 | electron-builder (portable) | 单文件 exe, 无安装器依赖 |
-| S端数据库 | SQLite → MySQL | 零配置开发, Docker Compose 生产 |
+| UI 框架 | giu (Go Dear ImGui) | 跟 ImHex 相同架构, 单二进制 ~13MB |
+| 状态管理 | goroutine + shared state | giu loop 每帧自动刷新, 无需 IPC/EventBus |
+| 构建 | CGO + MinGW (Win) | giu 需要 OpenGL, 静态链接 |
+| CLI | 独立 CGO_ENABLED=0 | ~2MB 纯静态, 服务器/headless 可用 |
+| 打包 | 单 exe 直接分发 | 无需 electron-builder/npm |

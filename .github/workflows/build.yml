@@ -1,4 +1,4 @@
-name: OCMaster C端 CI
+name: OCMaster CI
 
 on:
   push:
@@ -11,7 +11,6 @@ permissions:
   contents: write
 
 jobs:
-  # ====== 构建 Windows amd64 ======
   build:
     runs-on: windows-latest
     steps:
@@ -21,17 +20,12 @@ jobs:
         uses: actions/setup-go@v5
         with: { go-version: '1.22' }
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with: { node-version: '20' }
-
       - name: Read VERSION
         id: version
         shell: bash
         run: echo "value=$(cat VERSION | tr -d '\n\r ')" >> $GITHUB_OUTPUT
 
-      # ====== Go CLI 编译 + 测试 ======
-      - name: Build Go CLI
+      - name: Build Go CLI (static)
         run: |
           cd c-end/hardware-scanner
           $env:CGO_ENABLED = "0"
@@ -40,45 +34,32 @@ jobs:
       - name: Go test
         run: cd c-end/hardware-scanner && go test ./scanner/... -cover
 
-      - name: Go CLI JSON integration test
+      - name: CLI JSON integration test
         run: |
           $result = & c-end\bin\ocmaster.exe scan --out json 2>&1 | Out-String
           $json = $result | ConvertFrom-Json
-          if (-not $json.cpu.model) { throw "cpu.model empty: integration test failed" }
-          Write-Host "    CPU: $($json.cpu.model) ($($json.cpu.cores)C/$($json.cpu.threads)T)"
+          if (-not $json.cpu.model) { throw "cpu.model empty" }
+          Write-Host "CPU: $($json.cpu.model) ($($json.cpu.cores)C/$($json.cpu.threads)T)"
 
-      # ====== Electron 编译 + 打包 ======
-      - name: Sync VERSION → package.json
+      - name: Build Go GUI (CGO)
         run: |
-          node -e "const p=require('./c-end/electron/package.json');const v=require('fs').readFileSync('VERSION','utf8').trim();p.version=v;require('fs').writeFileSync('./c-end/electron/package.json',JSON.stringify(p,null,2)+'\n')"
+          cd c-end/hardware-scanner
+          $env:CGO_ENABLED = "1"
+          go build -ldflags="-s -w -X main.version=${{ steps.version.outputs.value }}" -o ..\bin\ocmaster-gui.exe .\cmd\gui
 
-      - name: Install npm deps
-        run: cd c-end/electron && npm ci
-
-      - name: Build Electron
-        run: cd c-end/electron && npm run build
-
-      - name: Package Electron (portable exe)
-        run: cd c-end/electron && npx electron-builder --win portable --publish=never
-
-      - name: Collect artifact (Go 命名规范)
+      - name: Rename + Upload artifact
         run: |
           $ver = "${{ steps.version.outputs.value }}"
           $name = "ocmaster_${ver}_windows_amd64.exe"
-          # electron-builder portable outputs to dist/
-          $exe = Get-ChildItem c-end\electron\dist\*.exe | Where-Object { $_.Name -notmatch 'Setup|Installer' } | Select-Object -First 1
-          if (-not $exe) { $exe = Get-ChildItem c-end\electron\dist\*.exe | Select-Object -First 1 }
-          if (-not $exe) { throw "No exe found in dist/" }
-          Move-Item $exe.FullName c-end\bin\$name -Force
-          Write-Host "    -> $name"
+          # GUI binary is the main release artifact
+          Copy-Item c-end\bin\ocmaster-gui.exe c-end\bin\$name
+          Write-Host "  -> $name"
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: OCMaster-Windows
           path: c-end/bin/ocmaster_*.exe
 
-  # ====== S端 测试 ======
   s-end-test:
     runs-on: ubuntu-latest
     steps:
@@ -86,25 +67,20 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with: { go-version: '1.22' }
-      - name: Run S端 tests
-        run: cd s-end/backend && go test ./... -cover
+      - run: cd s-end/backend && go test ./... -cover
 
-  # ====== Release ======
   release:
     needs: [build, s-end-test]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/download-artifact@v4
         with:
           name: OCMaster-Windows
-
       - name: Read VERSION
         shell: bash
         run: echo "VERSION=$(cat VERSION | tr -d '\n\r ')" >> $GITHUB_ENV
-
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:

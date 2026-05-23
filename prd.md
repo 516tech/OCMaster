@@ -23,7 +23,7 @@
 <details>
 <summary><strong>双模式运行</strong></summary>
 
-- GUI 模式: Electron + Vue 3, 双击启动, 可视化操作
+- GUI 模式: Go + giu (Dear ImGui), 双击启动, 可视化操作
 - CLI 模式: `ocmaster scan --out json`, 集成自动化工作流
 - GUI 和 CLI 共享 Go 扫描器, 相同硬件检测逻辑
 </details>
@@ -106,16 +106,16 @@ S端 (Go + Vue 3 SPA)
 └────────────────────┘
 ```
 
-### Core (Electron Shell)
+### Core (Go + giu)
 
 | 模块 | 技术 | 参考 ImHex |
 |------|------|-----------|
-| 窗口管理 | BrowserWindow + 状态持久化 | LayoutManager |
-| IPC 通信 | contextBridge + ipcMain.handle | EventManager |
-| 配置持久化 | JSON (userData) | ThemeManager |
-| 主题切换 | CSS Variables + Pinia | ThemeManager |
-| 任务管理 | AbortController + progress | TaskManager |
-| 通知系统 | ElNotification 4s 过期 | Toast/Banner |
+| 窗口管理 | giu MasterWindow + GLFW | ImGui GLFW backend |
+| 导航 | TabBar + TabItem | ImGui::BeginTabBar |
+| 数据展示 | Table + TableRow | ImGui::BeginTable |
+| 主题 | DefaultTheme() dark mode | StyleColorsDark |
+| 异步扫描 | goroutine + shared state | TaskManager |
+| 配置 | 计划中 | ThemeManager |
 
 ### Plugins (Go Scanner Backends)
 
@@ -141,7 +141,8 @@ Go/chi/GORM/Zerolog + Vue 3/Element Plus/Vite/Pinia
 |------|------|
 | OS | Windows 10 1809+ / macOS 12+ / Linux glibc 2.31+ |
 | CPU | amd64 / arm64 (Apple Silicon) |
-| RAM / Storage | ~50MiB / ~200MiB (GUI), ~10MiB / ~2MiB (CLI) |
+| GPU | OpenGL 3.2+ (GUI) / 不需要 (CLI) |
+| RAM / Storage | ~50MiB / ~15MiB (GUI), ~10MiB / ~2MiB (CLI) |
 
 **Install**
 ```
@@ -159,10 +160,13 @@ docker compose up                          # MySQL + Nginx 生产
 
 **Compiling**
 ```
+# CLI (纯静态, ~2MB)
 cd c-end/hardware-scanner && CGO_ENABLED=0 go build -ldflags="-s -w" -o ../bin/ocmaster ./cmd/cli
-cd c-end/electron && npm ci && npm run build && npx electron-builder --win portable
+
+# GUI (CGO + OpenGL, ~13MB)
+cd c-end/hardware-scanner && CGO_ENABLED=1 go build -ldflags="-s -w" -o ../bin/ocmaster ./cmd/gui
 ```
-CI: GitHub Actions `build-c-end.yml`, windows-latest, push → auto Release.
+CI: GitHub Actions `build.yml`, windows-latest, push → auto Release.
 
 **Contributing** — `scanner/scanner_<platform>.go` → `ScanAll() HardwareInfo` → PR.
 Modules: `c-end/electron/` (GUI) | `c-end/hardware-scanner/` (CLI+sidecar) | `s-end/backend/` (API) | `s-end/frontend/` (SPA)
