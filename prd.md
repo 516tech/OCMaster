@@ -1,61 +1,172 @@
-文档版本：V4.0
-创建日期：2026-05-18
-更新日期：2026-05-22
-文档状态：设计稿
-产品名称：超频大师（OCMaster）
-产品定位：跨平台硬件采集工具 + 商家端超频建议平台
+<h1 align="center">超频大师 OCMaster</h1>
 
-一、MVP 策略
+<p align="center">
+    跨平台硬件信息采集工具 + 超频服务商建议平台
+    <br>
+    <strong>/'oʊvərklɒk 'mæstər/</strong>
+</p>
 
-单产物交付：
-- C端：Electron + Vue 3 跨平台 GUI + Go CLI sidecar
-- S端：商家 Web 平台，本地 SQLite 开发 → 生产 MySQL + Docker Compose
-- S端零 Docker 依赖：`go run ./cmd/server` 直连 SQLite 文件启动
+## Features
 
-二、用户角色
+<details>
+<summary><strong>一键硬件扫描</strong></summary>
 
-| 角色 | 需求 |
+- CPU: 型号、核心数、线程数、基频
+- 主板: 品牌、型号、芯片组、BIOS 版本
+- 内存: 总容量、条数、频率、时序、颗粒类型、通道数
+- 显卡: 型号、显存
+- 电源: 额定功率 (SMBus 自动检测或手动输入)
+- 散热: 风冷/水冷类型
+- 扫描结果导出 TXT / JSON
+</details>
+
+<details>
+<summary><strong>双模式运行</strong></summary>
+
+- GUI 模式: Electron + Vue 3, 双击启动, 可视化操作
+- CLI 模式: `ocmaster scan --out json`, 集成自动化工作流
+- GUI 和 CLI 共享 Go 扫描器, 相同硬件检测逻辑
+</details>
+
+<details>
+<summary><strong>上传分享码</strong></summary>
+
+- 一键上传硬件信息到云端, 获取 6 位数字分享码
+- 分享码 7 天有效, 用户可随时撤销删除
+- 数据仅用于超频服务商提供建议, 到期自动清理
+- 无 IP/地理位置采集, 上传完全可选
+</details>
+
+<details>
+<summary><strong>超频建议平台 (S端)</strong></summary>
+
+- 超频服务商通过分享码查询用户硬件配置
+- 参考数据库: CPU 体质分 / 内存颗粒超频范围 / 散热器解热能力
+- 模板化建议填写 + 一键 PDF 导出 (chromedp)
+- 自定义风险提示模板, 商家个人资料管理
+- 手机号+密码注册, bcrypt 加密, JWT 认证
+</details>
+
+<details>
+<summary><strong>主题系统</strong></summary>
+
+- 暗色模式 (默认) / 亮色模式 / 跟随系统
+- CSS Variable 热切换, 无需重启
+- 参考 ImHex ThemeManager 模式
+- 主题偏好持久化到本地
+</details>
+
+<details>
+<summary><strong>跨平台</strong></summary>
+
+- Windows 10/11: Electron 单文件 exe (~70MB)
+- macOS: .dmg (Apple Silicon arm64)
+- Linux: .AppImage (amd64)
+- Go CLI: 三平台静态编译 (~2MB, CGO_ENABLED=0)
+</details>
+
+## Architecture
+
+OCMaster 采用 Core + Plugins 架构, 参考 ImHex 设计:
+
+```
+┌────────────────────────────────────────┐
+│              Electron Shell             │
+│  ┌──────────────────────────────────┐  │
+│  │         Vue 3 Renderer           │  │
+│  │  4 Pages + EventBus + Theme +    │  │
+│  │  Toast + TaskManager + Pinia     │  │
+│  └──────────────┬───────────────────┘  │
+│                 │ IPC (invoke/handle)   │
+│  ┌──────────────▼───────────────────┐  │
+│  │        Electron Main Process     │  │
+│  │  BrowserWindow + contextBridge   │  │
+│  │  + scanner.ts + config.ts        │  │
+│  │  + ipc-handlers.ts               │  │
+│  └──────────────┬───────────────────┘  │
+│                 │ child_process.spawn   │
+│  ┌──────────────▼───────────────────┐  │
+│  │     Go CLI (extraResources)       │  │
+│  │  ocmaster scan --out json         │  │
+│  │  → stdout → HardwareInfo JSON     │  │
+│  └──────────────────────────────────┘  │
+└────────────────────────────────────────┘
+
+S端 (Go + Vue 3 SPA)
+┌────────────────────┐
+│  Nginx (port 80)    │
+│  ├── /api/* → Go    │
+│  └── /     → Vue    │
+├────────────────────┤
+│  Go Backend (8080)  │
+│  chi / GORM /       │
+│  zerolog / Wire DI  │
+├────────────────────┤
+│  MySQL 8.0 (3306)   │
+└────────────────────┘
+```
+
+### Core (Electron Shell)
+
+| 模块 | 技术 | 参考 ImHex |
+|------|------|-----------|
+| 窗口管理 | BrowserWindow + 状态持久化 | LayoutManager |
+| IPC 通信 | contextBridge + ipcMain.handle | EventManager |
+| 配置持久化 | JSON (userData) | ThemeManager |
+| 主题切换 | CSS Variables + Pinia | ThemeManager |
+| 任务管理 | AbortController + progress | TaskManager |
+| 通知系统 | ElNotification 4s 过期 | Toast/Banner |
+
+### Plugins (Go Scanner Backends)
+
+| Backend | 平台 | 数据源 |
+|---------|------|--------|
+| scanner_windows | Windows | WMI (wmic) |
+| scanner_darwin | macOS | sysctl + system_profiler |
+| scanner_linux | Linux | /proc + sysfs + dmidecode + lspci |
+
+### S端 (DDD 四层)
+
+```
+domain/ → application/ → infrastructure/ → interfaces/http/
+```
+
+Go/chi/GORM/Zerolog + Vue 3/Element Plus/Vite/Pinia
+
+## Getting Started
+
+**Requirements**
+
+| 条件 | 要求 |
 |------|------|
-| 普通用户 | 双击启动 GUI，一键扫描硬件，导出或上传获取分享码 |
-| 进阶用户 | 命令行 `ocmaster scan --out json` 集成自动化 |
-| 超频服务商 | 登录 Web 平台，输入分享码查询硬件，生成超频建议 PDF |
+| OS | Windows 10 1809+ / macOS 12+ / Linux glibc 2.31+ |
+| CPU | amd64 / arm64 (Apple Silicon) |
+| RAM / Storage | ~50MiB / ~200MiB (GUI), ~10MiB / ~2MiB (CLI) |
 
-三、C端技术方案（Electron + Go Sidecar）
+**Install**
+```
+# C端 GUI — 下载 exe, 双击运行
+https://github.com/516tech/OCMaster/releases/latest
 
-- GUI：Electron 33 + Vue 3 + Element Plus, 4 页面 (Scan/Upload/Settings/About)
-- 硬件扫描：Go CLI 作为子进程，通过 stdout 获取 JSON 结果
-- 跨平台：Windows/macOS/Linux GUI，统一代码库
-- 打包：electron-builder (exe + dmg + AppImage)
-- Go 扫描器三平台静态编译 (CGO_ENABLED=0)
+# C端 CLI — 单文件静态编译
+curl -LO <release>/ocmaster_0.0.1_$(uname -s)_$(uname -m)
+chmod +x ocmaster_* && ./ocmaster_* scan --out json
 
-四、S端需求（不变）
+# S端
+cd s-end/backend && go run ./cmd/server   # SQLite 开发
+docker compose up                          # MySQL + Nginx 生产
+```
 
-- 手机号+密码注册(bcrypt)，管理员审核，JWT 登录
-- 分享码查询硬件信息，历史记录保留 30 天
-- 参考数据库：CPU/内存颗粒/散热 超频参数
-- 超频建议模板填写 + chromedp 生成 PDF
+**Compiling**
+```
+cd c-end/hardware-scanner && CGO_ENABLED=0 go build -ldflags="-s -w" -o ../bin/ocmaster ./cmd/cli
+cd c-end/electron && npm ci && npm run build && npx electron-builder --win portable
+```
+CI: GitHub Actions `build-c-end.yml`, windows-latest, push → auto Release.
 
-五、开发阶段
+**Contributing** — `scanner/scanner_<platform>.go` → `ScanAll() HardwareInfo` → PR.
+Modules: `c-end/electron/` (GUI) | `c-end/hardware-scanner/` (CLI+sidecar) | `s-end/backend/` (API) | `s-end/frontend/` (SPA)
 
-阶段〇：架构重构（Electron 迁移）
-- [x] 0.1 废弃 c-end/OCMaster.App/ WinUI 3 代码 (保留 Go DLL 逻辑)
-- [x] 0.2 Electron + Vue 3 项目初始化 (c-end/electron/)
-- [x] 0.3 Electron 主进程：BrowserWindow + preload + contextBridge
-- [x] 0.4 Go Sidecar 扫描器集成 (scanner.ts + IPC handlers)
-- [x] 0.5 Vue 3 页面：ScanPage + UploadPage + SettingsPage + AboutPage
-- [x] 0.6 ApiClient (TypeScript) + ConfigService (Electron userData)
-- [x] 0.7 electron-builder 配置 (win/mac/linux)
-- [x] 0.8 CI Matrix: Go 三平台构建 + Electron 打包 + Release
-- [ ] 0.9 npm run build 验证通过 (electron-vite)
-- [ ] 0.10 三平台手动测试 GUI
+## License
 
-阶段一至六：S端 + 集成（已完成，不变）
-
-六、CI Matrix (参考 ImHex)
-
-| Job | Runner | 产物 |
-|-----|--------|------|
-| go-build | win/mac/linux 并行 | Go CLI + JSON 集成测试 |
-| electron-build | win/mac/linux 并行 | Electron 打包产物 |
-| s-end-test | ubuntu-latest | go test -cover |
-| release | ubuntu-latest | GitHub Release |
+MIT
