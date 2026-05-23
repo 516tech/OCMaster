@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 func ScanAll() HardwareInfo {
@@ -21,7 +22,9 @@ func ScanAll() HardwareInfo {
 // wmic 执行 WMI 查询，返回 CSV 输出行（跳过表头）
 func wmicQuery(class string, props ...string) []string {
 	args := append([]string{"/c", "wmic", class, "get", strings.Join(props, ","), "/format:csv"}, "")
-	out, err := exec.Command("cmd", args...).Output()
+	cmd := exec.Command("cmd", args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	out, err := cmd.Output()
 	if err != nil {
 		return nil
 	}
