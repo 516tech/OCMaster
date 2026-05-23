@@ -155,12 +155,12 @@ func scanTab() g.Layout {
 		w = append(w, g.Label("硬件信息"))
 		w = append(w, g.Dummy(0, 8))
 		w = append(w, g.Table().
-			Flags(g.TableFlagsBorders|g.TableFlagsResizable|g.TableFlagsRowBg|g.TableFlagsScrollY).
+			Flags(g.TableFlagsBorders|g.TableFlagsResizable|g.TableFlagsRowBg|g.TableFlagsScrollY|g.TableFlagsSizingFixedFit).
 			Size(0, 440).
 			Columns(
-				g.TableColumn("组件").InnerWidthOrWeight(80),
-				g.TableColumn("属性").InnerWidthOrWeight(130),
-				g.TableColumn("值").InnerWidthOrWeight(490),
+				g.TableColumn("组件"),
+				g.TableColumn("属性"),
+				g.TableColumn("值"),
 			).Rows(
 			g.TableRow(g.Label("CPU"), g.Label("型号"), g.Label(hw.CPU.Model)),
 			g.TableRow(g.Label("CPU"), g.Label("核心 / 线程"), g.Label(fmt.Sprintf("%dC / %dT", hw.CPU.Cores, hw.CPU.Threads))),
