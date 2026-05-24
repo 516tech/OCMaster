@@ -47,24 +47,26 @@ func ScanAll() HardwareInfo {
 	return hw
 }
 
-// wmic 执行 WMI 查询，返回 CSV 输出行（跳过表头）
-func wmicQuery(class string, props ...string) []string {
-	scanLog.Printf("wmic: %s get %s", class, strings.Join(props, ","))
-	args := append([]string{"/c", "wmic", class, "get", strings.Join(props, ","), "/format:csv"}, "")
-	cmd := exec.Command("cmd", args...)
+// wmiQuery uses PowerShell Get-CimInstance (wmic is deprecated on Win10/11)
+func wmiQuery(class string, props ...string) []string {
+	scanLog.Printf("wmi: Win32_%s get %s", class, strings.Join(props, ","))
+	psCmd := fmt.Sprintf(
+		"Get-CimInstance Win32_%s | Select-Object %s | ConvertTo-Csv -NoTypeInformation",
+		class, strings.Join(props, ","))
+	cmd := exec.Command("powershell", "-NoProfile", "-Command", psCmd)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	out, err := cmd.Output()
 	if err != nil {
-		scanLog.Printf("wmic: %s FAILED — %v", class, err)
+		scanLog.Printf("wmi: Win32_%s FAILED — %v", class, err)
 		return nil
 	}
-	scanLog.Printf("wmic: %s OK — %d bytes", class, len(out))
+	scanLog.Printf("wmi: Win32_%s OK — %d bytes", class, len(out))
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	// 过滤空行和表头（Node,prop1,prop2,...）
+	// Skip header line (CSV column names)
 	var result []string
-	for _, line := range lines {
+	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "Node,") {
+		if trimmed == "" || i == 0 {
 			continue
 		}
 		result = append(result, trimmed)
@@ -84,7 +86,7 @@ func csvVal(line string, idx int) string {
 func scanCPUWindows() CpuInfo {
 	cpu := CpuInfo{Model: "Unknown CPU", Cores: 0, Threads: 0, BaseFreq: "0 MHz"}
 
-	lines := wmicQuery("cpu", "Name", "NumberOfCores", "NumberOfLogicalProcessors", "MaxClockSpeed")
+	lines := wmiQuery("Processor", "Name", "NumberOfCores", "NumberOfLogicalProcessors", "MaxClockSpeed")
 	if len(lines) == 0 {
 		return cpu
 	}
@@ -114,14 +116,14 @@ func scanMotherboardWindows() MotherboardInfo {
 	mb := MotherboardInfo{Brand: "Unknown", Model: "Unknown"}
 
 	// Win32_BaseBoard
-	bbLines := wmicQuery("baseboard", "Manufacturer", "Product")
+	bbLines := wmiQuery("BaseBoard", "Manufacturer", "Product")
 	if len(bbLines) > 0 {
 		mb.Brand = csvVal(bbLines[0], 1)
 		mb.Model = csvVal(bbLines[0], 2)
 	}
 
 	// BIOS version
-	biosLines := wmicQuery("bios", "SMBIOSBIOSVersion")
+	biosLines := wmiQuery("BIOS", "SMBIOSBIOSVersion")
 	if len(biosLines) > 0 {
 		mb.BiosVersion = csvVal(biosLines[0], 1)
 	}
@@ -139,7 +141,7 @@ func scanRAMWindows() RamInfo {
 	ram := RamInfo{Sticks: []RamStick{}}
 
 	// Win32_PhysicalMemory
-	lines := wmicQuery("memorychip", "Capacity", "Speed", "ConfiguredClockSpeed", "SMBIOSMemoryType")
+	lines := wmiQuery("PhysicalMemory", "Capacity", "Speed", "ConfiguredClockSpeed", "SMBIOSMemoryType")
 	totalBytes := uint64(0)
 	for _, line := range lines {
 		stick := RamStick{}
@@ -167,7 +169,7 @@ func scanRAMWindows() RamInfo {
 		ram.TotalCapacity = fmt.Sprintf("%.0f GB", float64(totalBytes)/1_073_741_824)
 	} else {
 		// Fallback: Win32_OperatingSystem TotalVisibleMemorySize
-		osLines := wmicQuery("os", "TotalVisibleMemorySize")
+		osLines := wmiQuery("OperatingSystem", "TotalVisibleMemorySize")
 		if len(osLines) > 0 {
 			if kb, err := strconv.ParseUint(csvVal(osLines[0], 1), 10, 64); err == nil && kb > 0 {
 				ram.TotalCapacity = fmt.Sprintf("%.0f GB", float64(kb)/1_048_576)
@@ -206,7 +208,7 @@ func memTypeName(code string) string {
 func scanGPUWindows() GpuInfo {
 	gpu := GpuInfo{Model: "Unknown GPU", VRAM: "Unknown"}
 
-	lines := wmicQuery("path win32_videocontroller", "Name", "AdapterRAM")
+	lines := wmiQuery("VideoController", "Name", "AdapterRAM")
 	if len(lines) == 0 {
 		return gpu
 	}

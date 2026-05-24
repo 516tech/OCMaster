@@ -35,20 +35,25 @@ func init() {
 	}
 }
 
+func navItem(label string, tab int32) g.Widget {
+	return g.Button(label).Size(100, 32).Disabled(activeTab == tab).OnClick(func() {
+		activeTab = tab
+		logger.Printf("nav: switched to tab %d=%s", tab, label)
+	})
+}
+
 func loop() {
 	g.SingleWindow().Layout(
-		// Navigation bar — custom buttons (no TabBar)
 		g.Child().Size(0, 44).Layout(
 			g.Row(
-				g.Dummy(8, 0),
-				g.Selectable("  硬件扫描  ").Selected(activeTab == 0).OnClick(func() { activeTab = 0 }),
-				g.Selectable("  上传分享  ").Selected(activeTab == 1).OnClick(func() { activeTab = 1 }),
-				g.Selectable("  设置      ").Selected(activeTab == 2).OnClick(func() { activeTab = 2 }),
-				g.Selectable("  关于      ").Selected(activeTab == 3).OnClick(func() { activeTab = 3 }),
+				g.Dummy(12, 0),
+				navItem("硬件扫描", 0),
+				navItem("上传分享", 1),
+				navItem("设置", 2),
+				navItem("关于", 3),
 			),
 		).Border(false),
 		g.Separator(),
-		// Content area
 		g.Child().Size(0, 0).Layout(
 			contentArea()...,
 		),
@@ -124,13 +129,13 @@ func scanTab() g.Layout {
 
 	w = append(w, g.Row(
 		g.Dummy(8, 0),
-		g.Button("开始扫描").Size(130, 36).OnClick(func() {
+		g.Button("开始扫描").Size(0, 0).OnClick(func() {
 			if !scanning {
 				logger.Println("button: start scan")
 				go doScan()
 			}
 		}),
-		g.Button("导出 TXT").Size(100, 36).OnClick(func() {
+		g.Button("导出 TXT").Size(0, 0).OnClick(func() {
 			if scanned {
 				logger.Println("button: export TXT")
 				exportTXT(hw)
@@ -186,7 +191,7 @@ func uploadTab() g.Layout {
 	w = append(w, g.Dummy(0, 16))
 	w = append(w, g.Label("上传硬件信息并获取分享码"))
 	w = append(w, g.Dummy(0, 8))
-	w = append(w, g.Button("上传硬件信息").Size(140, 36).OnClick(func() {
+	w = append(w, g.Button("上传硬件信息").Size(0, 0).OnClick(func() {
 		if !uploading {
 			uploading = true
 			uploadErr = ""
